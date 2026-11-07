@@ -4,6 +4,7 @@ export interface Point {
 }
 export type Segment =
   | { type: "line"; end: Point }
+  | { type: "quadratic"; control: Point; end: Point }
   | { type: "cubic"; control1: Point; control2: Point; end: Point };
 export type AreaKind = "platform" | "grass" | "road" | "other";
 interface Base {
@@ -46,7 +47,9 @@ export function pathData(o: PathObject): string {
       .map((s) =>
         s.type === "line"
           ? `L ${s.end.x} ${s.end.y}`
-          : `C ${s.control1.x} ${s.control1.y} ${s.control2.x} ${s.control2.y} ${s.end.x} ${s.end.y}`,
+          : s.type === "quadratic"
+            ? `Q ${s.control.x} ${s.control.y} ${s.end.x} ${s.end.y}`
+            : `C ${s.control1.x} ${s.control1.y} ${s.control2.x} ${s.control2.y} ${s.end.x} ${s.end.y}`,
       )
       .join(" ")
   );
@@ -57,7 +60,11 @@ export function points(o: StationObject): Point[] {
     : [
         o.start,
         ...o.segments.flatMap((s) =>
-          s.type === "line" ? [s.end] : [s.control1, s.control2, s.end],
+          s.type === "line"
+            ? [s.end]
+            : s.type === "quadratic"
+              ? [s.control, s.end]
+              : [s.control1, s.control2, s.end],
         ),
       ];
 }
@@ -75,12 +82,14 @@ export function translate(
         segments: o.segments.map((s) =>
           s.type === "line"
             ? { ...s, end: p(s.end) }
-            : {
-                ...s,
-                control1: p(s.control1),
-                control2: p(s.control2),
-                end: p(s.end),
-              },
+            : s.type === "quadratic"
+              ? { ...s, control: p(s.control), end: p(s.end) }
+              : {
+                  ...s,
+                  control1: p(s.control1),
+                  control2: p(s.control2),
+                  end: p(s.end),
+                },
         ),
       };
 }
@@ -95,6 +104,10 @@ export function setPoint(
   else {
     let n = 1;
     for (const s of copy.segments) {
+      if (s.type === "quadratic" && n++ === index) {
+        s.control = p;
+        break;
+      }
       if (s.type === "cubic") {
         if (n++ === index) {
           s.control1 = p;

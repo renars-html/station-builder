@@ -52,7 +52,7 @@ const tools = [
     label: "Path",
     key: "P",
     icon: Route,
-    help: "Click to place points. In curve mode: start, control 1, control 2, end. Enter finishes. Select a finished path to set its type in Properties.",
+    help: "Left-click adds a standard point. E adds a control point at the cursor (up to two between standard points). Right-click removes the last point. Enter finishes after a standard point. Select a finished path to set its type.",
   },
   {
     id: "area",
@@ -75,20 +75,19 @@ export default function App() {
     past,
     future,
     remove,
+    draft,
+    setDraft,
   } = useEditor();
   const [grid, setGrid] = useState(true),
     [snap, setSnap] = useState(false),
-    [curve, setCurve] = useState(false),
     [kind, setKind] = useState<AreaKind>("platform"),
     [view, setView] = useState<View>({ x: 30, y: 15, scale: 0.82 }),
-    [draft, setDraft] = useState<Point[]>([]),
     [position, setPosition] = useState<Point>({ x: 0, y: 0 }),
     [help, setHelp] = useState(false);
   const finishRef = useRef<(() => void) | null>(null);
   const active = station.objects.find((o) => o.id === selected);
   const current = tools.find((t) => t.id === tool)!;
   function changeTool(t: Tool) {
-    setDraft([]);
     setTool(t);
   }
   useEffect(() => {
@@ -102,14 +101,12 @@ export default function App() {
       const k = e.key.toLowerCase();
       if ((e.ctrlKey || e.metaKey) && k === "z") {
         e.preventDefault();
-        setDraft([]);
         if (e.shiftKey) redo();
         else undo();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && k === "y") {
         e.preventDefault();
-        setDraft([]);
         redo();
         return;
       }
@@ -117,22 +114,23 @@ export default function App() {
       if (k === "escape") {
         setDraft([]);
         select(null);
-      } else if (k === "enter") finishRef.current?.();
-      else if (k === "delete" || k === "backspace") {
+      } else if (k === "enter") {
+        e.preventDefault();
+        finishRef.current?.();
+      } else if (k === "delete" || k === "backspace") {
         e.preventDefault();
         remove();
       } else if (k === "g") setGrid((v) => !v);
       else {
         const t = tools.find((t) => t.key.toLowerCase() === k);
         if (t) {
-          setDraft([]);
           setTool(t.id);
         }
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [redo, undo, remove, setTool, select]);
+  }, [redo, undo, remove, setTool, select, setDraft]);
   function download() {
     const blob = new Blob([JSON.stringify(station, null, 2)], {
       type: "application/json",
@@ -201,50 +199,27 @@ export default function App() {
               </button>
             ))}
           </nav>
-          {(tool === "path" || tool === "area") && (
+          {tool === "area" && (
             <div className="tool-options">
-              <div className="section-heading">
-                {tool === "area" ? "AREA TYPE" : "PATH GEOMETRY"}
+              <div className="section-heading">AREA TYPE</div>
+              <div className="area-options">
+                {(["platform", "grass", "road", "other"] as AreaKind[]).map(
+                  (k) => (
+                    <button
+                      className={kind === k ? "chosen" : ""}
+                      onClick={() => {
+                        setKind(k);
+                        setDraft([]);
+                      }}
+                      key={k}
+                    >
+                      <i style={{ background: colors[k] }} />
+                      {k}
+                      <span>{kind === k && <Check size={13} />}</span>
+                    </button>
+                  ),
+                )}
               </div>
-              {tool === "area" ? (
-                <div className="area-options">
-                  {(["platform", "grass", "road", "other"] as AreaKind[]).map(
-                    (k) => (
-                      <button
-                        className={kind === k ? "chosen" : ""}
-                        onClick={() => {
-                          setKind(k);
-                          setDraft([]);
-                        }}
-                        key={k}
-                      >
-                        <i style={{ background: colors[k] }} />
-                        {k}
-                        <span>{kind === k && <Check size={13} />}</span>
-                      </button>
-                    ),
-                  )}
-                </div>
-              ) : (
-                <div className="segmented">
-                  <button
-                    className={!curve ? "chosen" : ""}
-                    onClick={() => {
-                      setCurve(false);
-                    }}
-                  >
-                    Straight
-                  </button>
-                  <button
-                    className={curve ? "chosen" : ""}
-                    onClick={() => {
-                      setCurve(true);
-                    }}
-                  >
-                    Bézier
-                  </button>
-                </div>
-              )}
             </div>
           )}
           <div className="layers-title section-heading">
@@ -286,7 +261,6 @@ export default function App() {
               <button
                 title="Undo (Ctrl+Z)"
                 onClick={() => {
-                  setDraft([]);
                   undo();
                 }}
                 disabled={!past.length}
@@ -296,7 +270,6 @@ export default function App() {
               <button
                 title="Redo (Ctrl+Shift+Z)"
                 onClick={() => {
-                  setDraft([]);
                   redo();
                 }}
                 disabled={!future.length}
@@ -329,12 +302,9 @@ export default function App() {
             <Canvas
               grid={grid}
               snap={snap}
-              curve={curve}
               kind={kind}
               view={view}
               setView={setView}
-              draft={draft}
-              setDraft={setDraft}
               finishRef={finishRef}
               onPosition={setPosition}
             />
@@ -390,8 +360,19 @@ export default function App() {
             </div>
             {draft.length > 0 && (
               <div className="draft-actions">
-                <span>{draft.length} points placed</span>
-                <button onClick={() => finishRef.current?.()}>
+                <span>
+                  {draft.length} points placed
+                  {tool === "path" && draft.at(-1)?.role === "control"
+                    ? " · Add a standard point to finish"
+                    : ""}
+                </span>
+                <button
+                  disabled={
+                    tool === "path" &&
+                    (draft.length < 2 || draft.at(-1)?.role === "control")
+                  }
+                  onClick={() => finishRef.current?.()}
+                >
                   Finish <kbd>↵</kbd>
                 </button>
                 <button onClick={() => setDraft([])}>Cancel</button>
@@ -549,10 +530,7 @@ export default function App() {
               <current.icon size={17} />
             </div>
             <span className="eyebrow">TOOL GUIDE</span>
-            <h3>
-              {current.label}
-              {tool === "path" ? (curve ? " · Bézier" : " · Straight") : ""}
-            </h3>
+            <h3>{current.label}</h3>
             <p>{current.help}</p>
             <div>
               <kbd>Esc</kbd> cancel <span>·</span> <kbd>Space</kbd> pan
@@ -569,13 +547,17 @@ export default function App() {
             <h2>Editor shortcuts</h2>
             <p>
               Draw paths and surfaces, then select an object to refine its
-              nodes. Curve paths use three clicks per segment: two controls,
-              then an endpoint. Switch between straight and Bézier geometry
-              after completing a segment to mix them in one path.
+              nodes. Left-click places standard points. Press E at the cursor to
+              place one control point for a quadratic curve, or two for a cubic
+              curve, then left-click the next standard point. Right-click
+              removes the last point. Enter finishes a path ending at a standard
+              point.
             </p>
             {[
               ["V / H", "Select / Pan"],
               ["P / A", "Path / Area"],
+              ["E", "Add path control point at cursor"],
+              ["Right-click", "Remove last drawing point"],
               ["Enter", "Finish drawing"],
               ["Escape", "Cancel drawing or deselect"],
               ["Delete", "Delete selection"],

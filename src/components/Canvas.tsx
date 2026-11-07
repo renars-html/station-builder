@@ -9,9 +9,9 @@ import {
   translate,
   type AreaKind,
   type Point,
-  type PathObject,
   type StationObject,
 } from "../model/station";
+import { draftGeometry } from "../model/pathDraft";
 import { useEditor } from "../store/editor";
 export interface View {
   x: number;
@@ -21,24 +21,18 @@ export interface View {
 interface Props {
   grid: boolean;
   snap: boolean;
-  curve: boolean;
   kind: AreaKind;
   view: View;
   setView: (v: View) => void;
-  draft: Point[];
-  setDraft: (p: Point[]) => void;
   finishRef: React.RefObject<(() => void) | null>;
   onPosition: (p: Point) => void;
 }
 export default function Canvas({
   grid,
   snap,
-  curve,
   kind,
   view,
   setView,
-  draft,
-  setDraft,
   finishRef,
   onPosition,
 }: Props) {
@@ -52,7 +46,17 @@ export default function Canvas({
     null,
   );
   const [space, setSpace] = useState(false);
-  const { station, selected, select, tool, commit } = useEditor();
+  const {
+    station,
+    selected,
+    select,
+    tool,
+    commit,
+    draft,
+    addPoint,
+    removeLastPoint,
+    finishPath,
+  } = useEditor();
   useEffect(() => {
     const observer = new ResizeObserver((e) => {
       const { width, height } = e[0].contentRect;
@@ -92,7 +96,7 @@ export default function Canvas({
       window.removeEventListener("blur", up);
     };
   }, []);
-  const modes = useRef<Record<number, boolean>>({});
+
   const world = () => {
     const p = stage.current?.getPointerPosition();
     if (!p) return null;
@@ -104,32 +108,28 @@ export default function Canvas({
       ? { x: Math.round(v.x / 10) * 10, y: Math.round(v.y / 10) * 10 }
       : v;
   };
-  function makePath(p: Point[]): PathObject {
-    const segments: PathObject["segments"] = [];
-    let i = 1;
-    while (i < p.length) {
-      if ((modes.current[i] ?? curve) && i + 2 < p.length) {
-        segments.push({
-          type: "cubic",
-          control1: p[i],
-          control2: p[i + 1],
-          end: p[i + 2],
-        });
-        i += 3;
-      } else if (!(modes.current[i] ?? curve)) {
-        segments.push({ type: "line", end: p[i] });
-        i++;
-      } else break;
-    }
-    return {
-      id: crypto.randomUUID(),
-      name: "Path",
-      type: "path",
-      kind: "placeholder",
-      start: p[0],
-      segments,
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (
+        tool !== "path" ||
+        e.key.toLowerCase() !== "e" ||
+        e.repeat ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        space ||
+        !hover ||
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      e.preventDefault();
+      addPoint({ ...hover, role: "control" });
     };
-  }
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [tool, hover, space, addPoint]);
   const finish = () => {
     if (tool === "area" && draft.length >= 3) {
       const o: StationObject = {
@@ -137,18 +137,12 @@ export default function Canvas({
         name: kind[0].toUpperCase() + kind.slice(1) + " area",
         type: "area",
         kind,
-        vertices: draft,
+        vertices: draft.map(({ x, y }) => ({ x, y })),
       };
-      commit([...station.objects, o]);
+      commit([...station.objects, o], true);
       select(o.id);
-      setDraft([]);
-    } else if (tool === "path" && draft.length > 1) {
-      const o = makePath(draft);
-      if (o.segments.length) {
-        commit([...station.objects, o]);
-        select(o.id);
-        setDraft([]);
-      }
+    } else if (tool === "path") {
+      finishPath();
     }
   };
   finishRef.current = finish;
@@ -233,6 +227,10 @@ export default function Canvas({
           });
         }}
         onMouseDown={(e) => {
+          if (e.evt.button === 2) {
+            if (tool === "path" || tool === "area") removeLastPoint();
+            return;
+          }
           if (space || tool === "pan" || e.evt.button === 1) {
             const p = stage.current?.getPointerPosition();
             if (p) pan.current = { ...p, vx: view.x, vy: view.y };
@@ -252,15 +250,7 @@ export default function Canvas({
               finish();
               return;
             }
-            if (draft.length === 0) modes.current = {};
-            let next = 1;
-            while (next < draft.length) {
-              const c = modes.current[next] ?? curve;
-              if (c && next + 2 >= draft.length) break;
-              next += c ? 3 : 1;
-            }
-            if (next === draft.length) modes.current[next] = curve;
-            setDraft([...draft, p]);
+            addPoint({ ...p, role: "standard" });
           }
         }}
         onMouseMove={() => {
@@ -389,9 +379,18 @@ export default function Canvas({
               ) : (
                 <>
                   <Path
-                    data={pathData(
-                      makePath([...draft, ...(hover ? [hover] : [])]),
-                    )}
+                    data={pathData({
+                      id: "preview",
+                      name: "Preview",
+                      type: "path",
+                      kind: "placeholder",
+                      ...draftGeometry([
+                        ...draft,
+                        ...(hover
+                          ? [{ ...hover, role: "standard" as const }]
+                          : []),
+                      ])!,
+                    })}
                     stroke="#277d6c"
                     strokeWidth={4}
                   />
@@ -410,7 +409,7 @@ export default function Canvas({
                   key={i}
                   {...p}
                   radius={4 / view.scale}
-                  fill="white"
+                  fill={p.role === "control" ? "#e4b15c" : "white"}
                   stroke="#277d6c"
                 />
               ))}
@@ -420,16 +419,20 @@ export default function Canvas({
             <Group>
               {actual.type !== "area" &&
                 actual.segments.map((s, i) =>
-                  s.type === "cubic" ? (
+                  s.type !== "line" ? (
                     <Line
                       key={i}
                       points={[
                         (i === 0 ? actual.start : actual.segments[i - 1].end).x,
                         (i === 0 ? actual.start : actual.segments[i - 1].end).y,
-                        s.control1.x,
-                        s.control1.y,
-                        s.control2.x,
-                        s.control2.y,
+                        ...(s.type === "quadratic"
+                          ? [s.control.x, s.control.y]
+                          : [
+                              s.control1.x,
+                              s.control1.y,
+                              s.control2.x,
+                              s.control2.y,
+                            ]),
                         s.end.x,
                         s.end.y,
                       ]}
