@@ -321,7 +321,7 @@ export default function App() {
               <button
                 title="Zoom in"
                 onClick={() =>
-                  setView({ ...view, scale: Math.min(4, view.scale * 1.2) })
+                  setView({ ...view, scale: Math.min(24, view.scale * 1.2) })
                 }
               >
                 <Plus size={16} />

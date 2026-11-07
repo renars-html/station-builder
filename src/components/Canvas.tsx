@@ -12,6 +12,7 @@ import {
   type StationObject,
 } from "../model/station";
 import { draftGeometry } from "../model/pathDraft";
+import PathAppearance from "./PathAppearance";
 import { useEditor } from "../store/editor";
 export interface View {
   x: number;
@@ -218,7 +219,7 @@ export default function Canvas({
           if (!p) return;
           const scale = Math.max(
             0.15,
-            Math.min(4, view.scale * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1)),
+            Math.min(24, view.scale * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1)),
           );
           setView({
             scale,
@@ -295,58 +296,40 @@ export default function Canvas({
                     strokeWidth={o.id === selected ? 2 : 1}
                   />
                 ) : (
-                  <>
-                    {o.id === selected && (
-                      <Path
-                        data={pathData(o)}
-                        stroke="#54a58e"
-                        opacity={0.25}
-                        strokeWidth={22}
-                      />
-                    )}
-                    <Path
-                      data={pathData(o)}
-                      stroke={
-                        o.kind === "track"
-                          ? "#737f79"
-                          : o.kind === "edge"
-                            ? "#ba8d43"
-                            : "#64746c"
+                  <PathAppearance
+                    path={o}
+                    selected={o.id === selected}
+                    edgeSide={(() => {
+                      // Direct edge bands toward the nearest platform surface.
+                      const platforms = station.objects.filter(
+                        (a) => a.type === "area" && a.kind === "platform",
+                      );
+                      let side = 1,
+                        nearest = Infinity;
+                      const end = o.segments[0]?.end ?? o.start;
+                      for (const area of platforms) {
+                        if (area.type !== "area") continue;
+                        const c = area.vertices.reduce(
+                          (p, v) => ({
+                            x: p.x + v.x / area.vertices.length,
+                            y: p.y + v.y / area.vertices.length,
+                          }),
+                          { x: 0, y: 0 },
+                        );
+                        const d = Math.hypot(c.x - o.start.x, c.y - o.start.y);
+                        if (d < nearest) {
+                          nearest = d;
+                          side =
+                            (end.x - o.start.x) * (c.y - o.start.y) -
+                              (end.y - o.start.y) * (c.x - o.start.x) >=
+                            0
+                              ? 1
+                              : -1;
+                        }
                       }
-                      strokeWidth={
-                        o.kind === "track" ? 14 : o.kind === "edge" ? 5 : 2
-                      }
-                      hitStrokeWidth={20}
-                    />
-                    {o.kind === "track" && (
-                      <>
-                        <Path
-                          data={pathData(o)}
-                          stroke="#dce0d7"
-                          strokeWidth={10}
-                        />
-                        <Path
-                          data={pathData(o)}
-                          stroke="#6c7770"
-                          strokeWidth={13}
-                          dash={[2, 8]}
-                        />
-                        <Path
-                          data={pathData(o)}
-                          stroke="#e9ece5"
-                          strokeWidth={6}
-                        />
-                      </>
-                    )}
-                    {o.kind === "edge" && (
-                      <Path
-                        data={pathData(o)}
-                        stroke="#fff3c9"
-                        strokeWidth={2}
-                        dash={[4, 4]}
-                      />
-                    )}
-                  </>
+                      return side;
+                    })()}
+                  />
                 )}
                 {o.type === "area" && o.kind === "platform" && (
                   <Text
@@ -355,7 +338,7 @@ export default function Canvas({
                     text={o.name.toUpperCase()}
                     fontSize={10}
                     letterSpacing={2}
-                    fill="#8d8b7d"
+                    fill="#dedfd9"
                     listening={false}
                   />
                 )}

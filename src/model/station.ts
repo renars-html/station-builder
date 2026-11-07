@@ -35,7 +35,7 @@ export interface Station {
   objects: StationObject[];
 }
 export const colors: Record<AreaKind, string> = {
-  platform: "#dfdace",
+  platform: "#777b78",
   grass: "#c0d2b6",
   road: "#bfc4c2",
   other: "#d6c9b5",

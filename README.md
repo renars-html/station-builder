@@ -37,6 +37,7 @@ Each tool also has a brief in-app guide. Coordinates and geometry use meters; sc
 ## Architecture
 
 - `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/quadratic/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Polygon surfaces are independent objects; edges are separate path objects. IDs use `crypto.randomUUID()`.
+- `src/model/pathAppearance.ts`: metric rail offsets and arc-length sleeper placement for straight and curved paths. Tracks use 1.435 m rail spacing, a 3.4 m brown bed, and 2.6 m concrete sleepers (0.28 m wide on 0.64 m centers). Platform edges use white/asphalt/white/asphalt bands of 0.1/1.0/0.9/0.9 m, directed toward the nearest platform surface. Platform fills match the asphalt. Zoom supports up to 2400% for inspecting these details.
 - `src/model/pathDraft.ts`: typed standard/control draft points and pure line/quadratic/cubic construction.
 - `src/store/editor.ts`: Zustand document, selection, tools, and bounded (100-step) snapshot undo/redo. Document edits and drawing drafts share history snapshots; viewport and selection changes do not.
 - `src/components/Canvas.tsx`: Konva rendering, screen-to-world conversion, draft tools, node handles, panning, zooming, and grid. Drag previews stay outside the document until committed.
