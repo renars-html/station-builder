@@ -12,7 +12,8 @@ describe("world geometry", () => {
   const path: PathObject = {
     id: "test",
     name: "Mixed",
-    type: "track",
+    type: "path",
+    kind: "track",
     start: { x: 0, y: 0 },
     segments: [
       { type: "line", end: { x: 10, y: 0 } },
@@ -40,6 +41,20 @@ describe("world geometry", () => {
     expect(points(edited)[3]).toEqual({ x: 25, y: 35 });
     expect(points(edited)[4]).toEqual({ x: 40, y: 30 });
     expect(points(path)[3]).toEqual({ x: 20, y: 30 });
+  });
+  it("changes a placeholder path type without losing geometry and supports undo", () => {
+    const placeholder: PathObject = { ...path, kind: "placeholder" };
+    useEditor.getState().commit([placeholder]);
+    const track: PathObject = { ...placeholder, kind: "track" };
+    useEditor.getState().commit([track]);
+    expect(points(useEditor.getState().station.objects[0])).toEqual(
+      points(placeholder),
+    );
+    expect(pathData(track)).toEqual(pathData(placeholder));
+    useEditor.getState().undo();
+    expect(useEditor.getState().station.objects).toEqual([placeholder]);
+    useEditor.getState().redo();
+    expect(useEditor.getState().station.objects).toEqual([track]);
   });
   it("restores edits and deletion with undo and redo and clears redo on branching", () => {
     const original = useEditor.getState().station;

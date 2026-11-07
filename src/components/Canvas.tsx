@@ -61,10 +61,10 @@ export default function Canvas({
         initialized.current = true;
         setView({
           x: 25,
-          y: 90,
+          y: 25,
           scale: Math.max(
             0.15,
-            Math.min(1, (width - 70) / 1100, (height - 130) / 650),
+            Math.min(1, (width - 70) / 1100, (height - 70) / 650),
           ),
         });
       }
@@ -123,8 +123,9 @@ export default function Canvas({
     }
     return {
       id: crypto.randomUUID(),
-      name: tool === "edge" ? "Platform edge" : "Track",
-      type: tool === "edge" ? "edge" : "track",
+      name: "Path",
+      type: "path",
+      kind: "placeholder",
       start: p[0],
       segments,
     };
@@ -141,7 +142,7 @@ export default function Canvas({
       commit([...station.objects, o]);
       select(o.id);
       setDraft([]);
-    } else if ((tool === "track" || tool === "edge") && draft.length > 1) {
+    } else if (tool === "path" && draft.length > 1) {
       const o = makePath(draft);
       if (o.segments.length) {
         commit([...station.objects, o]);
@@ -315,11 +316,19 @@ export default function Canvas({
                     )}
                     <Path
                       data={pathData(o)}
-                      stroke={o.type === "track" ? "#737f79" : "#ba8d43"}
-                      strokeWidth={o.type === "track" ? 14 : 5}
+                      stroke={
+                        o.kind === "track"
+                          ? "#737f79"
+                          : o.kind === "edge"
+                            ? "#ba8d43"
+                            : "#64746c"
+                      }
+                      strokeWidth={
+                        o.kind === "track" ? 14 : o.kind === "edge" ? 5 : 2
+                      }
                       hitStrokeWidth={20}
                     />
-                    {o.type === "track" && (
+                    {o.kind === "track" && (
                       <>
                         <Path
                           data={pathData(o)}
@@ -339,7 +348,7 @@ export default function Canvas({
                         />
                       </>
                     )}
-                    {o.type === "edge" && (
+                    {o.kind === "edge" && (
                       <Path
                         data={pathData(o)}
                         stroke="#fff3c9"

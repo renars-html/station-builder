@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { example, type Station, type StationObject } from "../model/station";
-export type Tool = "select" | "pan" | "track" | "edge" | "area";
+export type Tool = "select" | "pan" | "path" | "area";
 interface Editor {
   station: Station;
   past: Station[];

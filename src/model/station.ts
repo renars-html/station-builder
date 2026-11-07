@@ -10,8 +10,16 @@ interface Base {
   id: string;
   name: string;
 }
+// Add future path kinds here; geometry remains independent of its use.
+export const pathKinds = {
+  placeholder: "Placeholder",
+  track: "Track",
+  edge: "Platform edge",
+} as const;
+export type PathKind = keyof typeof pathKinds;
 export interface PathObject extends Base {
-  type: "track" | "edge";
+  type: "path";
+  kind: PathKind;
   start: Point;
   segments: Segment[];
 }
@@ -108,7 +116,8 @@ export function setPoint(
 const path = (id: string, name: string, y: number): PathObject => ({
   id,
   name,
-  type: "track",
+  type: "path",
+  kind: "track",
   start: { x: 80, y },
   segments: [
     { type: "line", end: { x: 650, y } },
@@ -179,7 +188,8 @@ export const example: Station = {
     {
       id: "edge-1",
       name: "Platform 01 · North edge",
-      type: "edge",
+      type: "path",
+      kind: "edge",
       start: { x: 160, y: 260 },
       segments: [
         { type: "line", end: { x: 670, y: 260 } },
@@ -189,7 +199,8 @@ export const example: Station = {
     {
       id: "edge-2",
       name: "Platform 01 · South edge",
-      type: "edge",
+      type: "path",
+      kind: "edge",
       start: { x: 160, y: 340 },
       segments: [
         { type: "line", end: { x: 670, y: 340 } },
@@ -199,7 +210,8 @@ export const example: Station = {
     {
       id: "edge-3",
       name: "Platform 02 · Edge",
-      type: "edge",
+      type: "path",
+      kind: "edge",
       start: { x: 160, y: 435 },
       segments: [
         { type: "line", end: { x: 660, y: 435 } },

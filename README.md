@@ -21,7 +21,7 @@ A sample station is loaded on startup. Select and delete objects to replace it w
 
 - **Select (V):** click an object or its entry in Objects. Drag it to move. Drag outlined nodes to change endpoints, Bézier controls, or polygon vertices. The inspector edits its name and surface type.
 - **Pan (H):** drag the view. Hold Space and drag or use the middle mouse button with any tool.
-- **Track (T) / Platform edge (E):** click a start, then endpoints in Straight mode. In Bézier mode, click start, control 1, control 2, endpoint; each additional curve takes two controls and an endpoint. Switch geometry after a complete segment to mix lines and curves. Enter finishes. An incomplete final curve is omitted.
+- **Path (P):** click a start, then endpoints in Straight mode. In Bézier mode, click start, control 1, control 2, endpoint; each additional curve takes two controls and an endpoint. Switch geometry after a complete segment to mix lines and curves. Enter finishes. New paths are placeholder lines; select one and use **Properties → Path type** to assign Track or Platform edge. An incomplete final curve is omitted.
 - **Area (A):** choose Platform, Grass, Road, or Other; click at least three vertices. Enter or click the first vertex to close the polygon.
 - **Escape:** cancel drawing or deselect. Changing tools cancels the unfinished drawing.
 - **Delete / Backspace:** delete selection.
@@ -34,7 +34,7 @@ Each tool also has a brief in-app guide. Coordinates and geometry use meters; sc
 
 ## Architecture
 
-- `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start and ordered line/cubic segments. Polygon surfaces are independent objects; edges are separate path objects. IDs use `crypto.randomUUID()`.
+- `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Polygon surfaces are independent objects; edges are separate path objects. IDs use `crypto.randomUUID()`.
 - `src/store/editor.ts`: Zustand document, selection, tools, and bounded (100-step) snapshot undo/redo. Document edits create history; viewport and selection changes do not.
 - `src/components/Canvas.tsx`: Konva rendering, screen-to-world conversion, draft tools, node handles, panning, zooming, and grid. Drag previews stay outside the document until committed.
 - `src/App.tsx`: desktop workspace, inspector, object list, shortcuts, export, and tool guides.
@@ -49,4 +49,4 @@ Work is held in memory and resets on reload. JSON export is supported; import an
 
 ## Verification
 
-`npm run build` and `npm test` pass (four regression tests). Interactive browser QA could not be completed in the managed environment: `sites-preview` reported a browser relay readiness timeout. Manual checking of drawing, node dragging, and view controls in a local desktop browser is recommended before relying on the editor for production work.
+`npm run build` and `npm test` pass (five regression tests). Interactive browser QA could not be completed in the managed environment: `sites-preview` reported a browser relay readiness timeout. Manual checking of drawing, node dragging, and view controls in a local desktop browser is recommended before relying on the editor for production work.

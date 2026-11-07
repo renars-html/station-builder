@@ -24,7 +24,14 @@ import {
 } from "lucide-react";
 import Canvas, { type View } from "./components/Canvas";
 import { useEditor, type Tool } from "./store/editor";
-import { colors, points, type AreaKind, type Point } from "./model/station";
+import {
+  colors,
+  pathKinds,
+  points,
+  type PathKind,
+  type AreaKind,
+  type Point,
+} from "./model/station";
 const tools = [
   {
     id: "select",
@@ -41,18 +48,11 @@ const tools = [
     help: "Drag the canvas to move around. You can also hold Space with any tool.",
   },
   {
-    id: "track",
-    label: "Track",
-    key: "T",
+    id: "path",
+    label: "Path",
+    key: "P",
     icon: Route,
-    help: "Click to place points. In curve mode: start, control 1, control 2, end. Enter finishes the path.",
-  },
-  {
-    id: "edge",
-    label: "Platform edge",
-    key: "E",
-    icon: Spline,
-    help: "Draw a platform boundary. Click points for lines, or groups of 3 for curves. Enter finishes.",
+    help: "Click to place points. In curve mode: start, control 1, control 2, end. Enter finishes. Select a finished path to set its type in Properties.",
   },
   {
     id: "area",
@@ -145,8 +145,11 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
   const counts = {
-    track: station.objects.filter((o) => o.type === "track").length,
-    edge: station.objects.filter((o) => o.type === "edge").length,
+    track: station.objects.filter(
+      (o) => o.type === "path" && o.kind === "track",
+    ).length,
+    edge: station.objects.filter((o) => o.type === "path" && o.kind === "edge")
+      .length,
     area: station.objects.filter((o) => o.type === "area").length,
   };
   return (
@@ -198,50 +201,52 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <div className="tool-options">
-            <div className="section-heading">
-              {tool === "area" ? "AREA TYPE" : "PATH GEOMETRY"}
+          {(tool === "path" || tool === "area") && (
+            <div className="tool-options">
+              <div className="section-heading">
+                {tool === "area" ? "AREA TYPE" : "PATH GEOMETRY"}
+              </div>
+              {tool === "area" ? (
+                <div className="area-options">
+                  {(["platform", "grass", "road", "other"] as AreaKind[]).map(
+                    (k) => (
+                      <button
+                        className={kind === k ? "chosen" : ""}
+                        onClick={() => {
+                          setKind(k);
+                          setDraft([]);
+                        }}
+                        key={k}
+                      >
+                        <i style={{ background: colors[k] }} />
+                        {k}
+                        <span>{kind === k && <Check size={13} />}</span>
+                      </button>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <div className="segmented">
+                  <button
+                    className={!curve ? "chosen" : ""}
+                    onClick={() => {
+                      setCurve(false);
+                    }}
+                  >
+                    Straight
+                  </button>
+                  <button
+                    className={curve ? "chosen" : ""}
+                    onClick={() => {
+                      setCurve(true);
+                    }}
+                  >
+                    Bézier
+                  </button>
+                </div>
+              )}
             </div>
-            {tool === "area" ? (
-              <div className="area-options">
-                {(["platform", "grass", "road", "other"] as AreaKind[]).map(
-                  (k) => (
-                    <button
-                      className={kind === k ? "chosen" : ""}
-                      onClick={() => {
-                        setKind(k);
-                        setDraft([]);
-                      }}
-                      key={k}
-                    >
-                      <i style={{ background: colors[k] }} />
-                      {k}
-                      <span>{kind === k && <Check size={13} />}</span>
-                    </button>
-                  ),
-                )}
-              </div>
-            ) : (
-              <div className="segmented">
-                <button
-                  className={!curve ? "chosen" : ""}
-                  onClick={() => {
-                    setCurve(false);
-                  }}
-                >
-                  Straight
-                </button>
-                <button
-                  className={curve ? "chosen" : ""}
-                  onClick={() => {
-                    setCurve(true);
-                  }}
-                >
-                  Bézier
-                </button>
-              </div>
-            )}
-          </div>
+          )}
           <div className="layers-title section-heading">
             <span>
               <Layers size={14} /> OBJECTS
@@ -262,7 +267,7 @@ export default function App() {
               >
                 {o.type === "area" ? (
                   <i style={{ background: colors[o.kind] }} />
-                ) : o.type === "track" ? (
+                ) : o.type === "path" && o.kind === "track" ? (
                   <Route size={14} />
                 ) : (
                   <Spline size={14} />
@@ -333,11 +338,6 @@ export default function App() {
               finishRef={finishRef}
               onPosition={setPosition}
             />
-            <div className="canvas-heading">
-              <span>STATION PLAN</span>
-              <h1>A place for every journey.</h1>
-              <p>Shape the station. Connect the possibilities.</p>
-            </div>
             <div className="zoom-controls">
               <button
                 title="Zoom out"
@@ -375,16 +375,13 @@ export default function App() {
                     Math.min(
                       4,
                       (el.clientWidth - 100) / Math.max(w, 1),
-                      (el.clientHeight - 180) / Math.max(h, 1),
+                      (el.clientHeight - 100) / Math.max(h, 1),
                     ),
                   );
                   setView({
                     scale,
                     x: (el.clientWidth - w * scale) / 2 - minX * scale,
-                    y:
-                      110 +
-                      (el.clientHeight - 140 - h * scale) / 2 -
-                      minY * scale,
+                    y: (el.clientHeight - h * scale) / 2 - minY * scale,
                   });
                 }}
               >
@@ -407,7 +404,11 @@ export default function App() {
               {current.label} tool{" "}
               <span className="footer-muted">
                 ·{" "}
-                {tool === "select" ? "Ready to edit" : "Click to place points"}
+                {tool === "pan"
+                  ? "Drag to pan"
+                  : tool === "select"
+                    ? "Click to select"
+                    : "Click to place points"}
               </span>
             </span>
             <span className="coordinates">
@@ -426,9 +427,7 @@ export default function App() {
               <div className="object-type">
                 {active.type === "area"
                   ? active.kind + " surface"
-                  : active.type === "track"
-                    ? "Railway track"
-                    : "Platform boundary"}
+                  : pathKinds[active.kind] + " path"}
               </div>
               <label>
                 Object name
@@ -459,6 +458,29 @@ export default function App() {
                   </b>
                 </div>
               </div>
+              {active.type === "path" && (
+                <label>
+                  Path type
+                  <select
+                    value={active.kind}
+                    onChange={(e) =>
+                      commit(
+                        station.objects.map((o) =>
+                          o.id === active.id
+                            ? { ...active, kind: e.target.value as PathKind }
+                            : o,
+                        ),
+                      )
+                    }
+                  >
+                    {Object.entries(pathKinds).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {active.type === "area" && (
                 <label>
                   Surface type
@@ -491,11 +513,6 @@ export default function App() {
             </div>
           ) : (
             <div className="empty-selection">
-              <div className="selection-icon">
-                <MousePointer2 size={24} />
-                <span>+</span>
-              </div>
-              <h3>Make it your own</h3>
               <p>
                 Select an object on the canvas
                 <br />
@@ -534,21 +551,12 @@ export default function App() {
             <span className="eyebrow">TOOL GUIDE</span>
             <h3>
               {current.label}
-              {tool === "track" || tool === "edge"
-                ? curve
-                  ? " · Bézier"
-                  : " · Straight"
-                : ""}
+              {tool === "path" ? (curve ? " · Bézier" : " · Straight") : ""}
             </h3>
             <p>{current.help}</p>
             <div>
               <kbd>Esc</kbd> cancel <span>·</span> <kbd>Space</kbd> pan
             </div>
-          </div>
-          <div className="inspector-note">
-            Designed for possibilities.
-            <br />
-            <span>Simulation comes later.</span>
           </div>
         </aside>
       </div>
@@ -558,8 +566,7 @@ export default function App() {
             <button className="close-modal" onClick={() => setHelp(false)}>
               <X size={18} />
             </button>
-            <span className="eyebrow">A LITTLE GUIDANCE</span>
-            <h2>Your station starts here.</h2>
+            <h2>Editor shortcuts</h2>
             <p>
               Draw paths and surfaces, then select an object to refine its
               nodes. Curve paths use three clicks per segment: two controls,
@@ -568,7 +575,7 @@ export default function App() {
             </p>
             {[
               ["V / H", "Select / Pan"],
-              ["T / E / A", "Track / Edge / Area"],
+              ["P / A", "Path / Area"],
               ["Enter", "Finish drawing"],
               ["Escape", "Cancel drawing or deselect"],
               ["Delete", "Delete selection"],

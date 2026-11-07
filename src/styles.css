@@ -346,30 +346,6 @@ main {
   height: 100%;
   width: 100%;
 }
-.canvas-heading {
-  position: absolute;
-  top: 30px;
-  left: 33px;
-  pointer-events: none;
-}
-.canvas-heading > span {
-  font-size: 8px;
-  letter-spacing: 1.7px;
-  color: #85917f;
-}
-.canvas-heading h1 {
-  font-family: Georgia, serif;
-  font-weight: 400;
-  font-size: 23px;
-  letter-spacing: -0.6px;
-  margin: 8px 0;
-  color: #435a43;
-}
-.canvas-heading p {
-  font-size: 10px;
-  color: #8c9786;
-  margin: 0;
-}
 .north {
   position: absolute;
   right: 24px;
@@ -484,25 +460,6 @@ footer .live-dot {
   text-align: center;
   padding: 43px 0 35px;
 }
-.selection-icon {
-  position: relative;
-  margin: auto auto 18px;
-  border: 1px dashed #b7c7ad;
-  border-radius: 10px;
-  width: 47px;
-  height: 47px;
-  color: #8eab80;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: rotate(-5deg);
-}
-.selection-icon span {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  font-size: 12px;
-}
 .empty-selection h3 {
   font-weight: 500;
   font-size: 12px;
@@ -582,20 +539,6 @@ footer .live-dot {
   font-size: 8px;
   background: #f7f9f1;
   border-color: #dbe3ce;
-}
-.inspector-note {
-  margin-top: auto;
-  text-align: center;
-  font-family: Georgia, serif;
-  font-size: 12px;
-  color: #9ca88f;
-  line-height: 1.9;
-  padding: 25px 0;
-}
-.inspector-note span {
-  font-family: inherit;
-  font-size: 10px;
-  color: #b1baa6;
 }
 .area-options button {
   display: flex;
