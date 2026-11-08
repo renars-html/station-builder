@@ -341,7 +341,7 @@ export default function App() {
               </button>
               <button
                 className={snap ? "toggled" : ""}
-                title="Snap to nearby anchors and boundaries, then the 10 m grid"
+                title="Snap points and moved objects to same-level paths, areas and platform edges; hold Alt to bypass"
                 onClick={() => setSnap(!snap)}
               >
                 <Magnet size={16} />

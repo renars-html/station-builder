@@ -814,3 +814,19 @@ fieldset:disabled {
 .save-status.dirty {
   color: #a77946;
 }
+.snap-label {
+  position: absolute;
+  left: 20px;
+  bottom: 65px;
+  background: #fafcf4ee;
+  border: 1px solid #c5d1ba;
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 10px;
+  color: #667b51;
+  pointer-events: none;
+  max-width: calc(100% - 40px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

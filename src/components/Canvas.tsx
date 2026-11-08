@@ -1,7 +1,11 @@
 import { transformSelection, boxSelection } from "../model/selection";
 import { renderPlan, edgeSideFor } from "../model/renderPlan";
 import ObjectHitShape from "./ObjectHitShape";
-import { resolveSnap, type SnapResult } from "../model/snapping";
+import {
+  resolveSnap,
+  snapTranslation,
+  type SnapResult,
+} from "../model/snapping";
 import EdgeRangeHandles from "./EdgeRangeHandles";
 import type { EdgeEditing } from "./TrackPlatformProperties";
 import { useEffect, useRef, useState } from "react";
@@ -85,6 +89,7 @@ export default function Canvas({
     addPoint,
     removeLastPoint,
     finishPath,
+    editingObjectId,
     finishArea,
   } = useEditor();
   useEffect(() => {
@@ -170,6 +175,7 @@ export default function Canvas({
       setPreview(null);
       setMovePreview({});
       setBox(null);
+      setSnapTarget(null);
       boxStart.current = null;
       if (node?.isDragging()) node.stopDrag();
     };
@@ -186,18 +192,26 @@ export default function Canvas({
       ? { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale }
       : null;
   };
-  const world = () => {
+  const world = (bypass = false) => {
     const p = stage.current?.getPointerPosition();
     if (!p) return null;
     const v = {
       x: (p.x - view.x) / view.scale,
       y: (p.y - view.y) / view.scale,
     };
-    if (!snap) {
+    if (!snap || bypass) {
       setSnapTarget(null);
       return v;
     }
-    const target = resolveSnap(v, station.objects, view.scale);
+    const source = station.objects.find((o) => o.id === editingObjectId);
+    const target = resolveSnap(
+      v,
+      station.objects,
+      view.scale,
+      editingObjectId ?? undefined,
+      undefined,
+      { z: source?.z ?? 0 },
+    );
     setSnapTarget(target);
     return target.point;
   };
@@ -209,7 +223,6 @@ export default function Canvas({
         e.repeat ||
         e.ctrlKey ||
         e.metaKey ||
-        e.altKey ||
         space ||
         !hover ||
         e.target instanceof HTMLInputElement ||
@@ -219,11 +232,12 @@ export default function Canvas({
       )
         return;
       e.preventDefault();
-      addPoint({ ...hover, role: "control" });
+      const position = world(e.altKey);
+      if (position) addPoint({ ...position, role: "control" });
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [tool, hover, space, addPoint]);
+  }, [tool, hover, space, addPoint, snap, view, station, editingObjectId]);
   const finish = () => {
     if (tool === "area") {
       finishArea(kind);
@@ -271,10 +285,17 @@ export default function Canvas({
     onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
       const base = drag.current;
       if (!base || base.station !== useEditor.getState().station) return;
-      const moved = transformSelection(base.station.objects, base.ids, {
-        x: e.target.x(),
-        y: e.target.y(),
-      });
+      const raw = { x: e.target.x(), y: e.target.y() };
+      const resolved =
+        snap && !e.evt.altKey
+          ? snapTranslation(base.station.objects, base.ids, raw, view.scale)
+          : { delta: raw, target: null };
+      setSnapTarget(resolved.target);
+      const moved = transformSelection(
+        base.station.objects,
+        base.ids,
+        resolved.delta,
+      );
       setMovePreview(
         Object.fromEntries(
           moved.filter((o) => base.ids.includes(o.id)).map((o) => [o.id, o]),
@@ -289,8 +310,14 @@ export default function Canvas({
       e.target.position({ x: 0, y: 0 });
       setMovePreview({});
       if (!base || base.station !== useEditor.getState().station) return;
+      const raw = { x: dx, y: dy },
+        resolved =
+          snap && !e.evt.altKey
+            ? snapTranslation(base.station.objects, base.ids, raw, view.scale)
+            : { delta: raw, target: null };
+      setSnapTarget(null);
       commit(
-        transformSelection(base.station.objects, base.ids, { x: dx, y: dy }),
+        transformSelection(base.station.objects, base.ids, resolved.delta),
       );
     },
   });
@@ -369,7 +396,7 @@ export default function Canvas({
             return;
           }
           if (e.evt.button !== 0) return;
-          const p = world();
+          const p = world(e.evt.altKey);
           if (!p) return;
           if (tool === "select") {
             if (e.target === stage.current) {
@@ -392,12 +419,12 @@ export default function Canvas({
             addPoint({ ...p, role: "standard" });
           }
         }}
-        onMouseMove={() => {
+        onMouseMove={(e) => {
           if (boxStart.current) {
             const end = rawWorld();
             if (end) setBox({ start: boxStart.current, end });
           }
-          const p = world();
+          const p = drag.current ? rawWorld() : world(e.evt.altKey);
           if (p) {
             setHover(p);
             onPosition(p);
@@ -600,18 +627,19 @@ export default function Canvas({
                       )
                         return;
                       let p = { x: e.target.x(), y: e.target.y() };
-                      if (snap) {
+                      if (snap && !e.evt.altKey) {
                         const target = resolveSnap(
                           p,
                           station.objects,
                           view.scale,
                           actual.id,
                           i,
+                          { z: actual.z ?? 0 },
                         );
                         p = target.point;
                         setSnapTarget(target);
                         e.target.position(p);
-                      }
+                      } else setSnapTarget(null);
                       setPreview(setPoint(actual, i, p));
                     }}
                     onDragEnd={(e) => {
@@ -625,15 +653,17 @@ export default function Canvas({
                         return;
                       }
                       const raw = { x: e.target.x(), y: e.target.y() };
-                      const p = snap
-                        ? resolveSnap(
-                            raw,
-                            station.objects,
-                            view.scale,
-                            actual.id,
-                            i,
-                          ).point
-                        : raw;
+                      const p =
+                        snap && !e.evt.altKey
+                          ? resolveSnap(
+                              raw,
+                              station.objects,
+                              view.scale,
+                              actual.id,
+                              i,
+                              { z: actual.z ?? 0 },
+                            ).point
+                          : raw;
                       setSnapTarget(null);
                       commit(
                         station.objects.map((o) =>
@@ -669,6 +699,11 @@ export default function Canvas({
           )}
         </Layer>
       </Stage>
+      {snap && snapTarget && (
+        <div className="snap-label" role="status">
+          {snapTarget.label ?? snapTarget.kind} · Alt bypasses snapping
+        </div>
+      )}
       <div className="north">
         <span>↑</span>N
       </div>

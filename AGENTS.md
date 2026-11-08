@@ -23,3 +23,9 @@ This is a desktop-only React + strict TypeScript + Vite editor using react-konva
 ## Current milestone state
 
 M0–M4 are implemented. M5 interaction features are implemented but browser QA is pending because managed preview relay readiness fails. Do not call M5 complete until those flows are observed/tested in a browser. M6 topology/performance remains planned. Current schema is v2; migrate v1 polygon vertices into closed segment boundaries. Optional Z/locked/hidden fields default to ground/unlocked/visible. Keep render and hit passes in matching order. Lock prevents geometric changes/deletion, not inspecting or changing metadata. Selection is independent of history; group edits commit once. A no-op must preserve redo. Update these notes when milestone status changes.
+
+## Latest near-term priorities
+
+The user reprioritized upcoming work: path/area snapping refinements (M2.1) are implemented with browser QA still pending; next implement textured materials (M7) and the prop system/catalog (M8) in the very near future. Keep M5 browser QA open while the relay is unavailable; M6 persistent topology/performance follows these requested features. Textures and props are roadmap commitments, not already implemented features. The requested prop catalog includes platform canopies, benches, PIDs, ticket machines and ticket barriers.
+
+Snapping is geometric, not a persistent constraint. Use the shared resolver for draft points, edited nodes and rigid selection translations; preserve shape/relative offsets, exclude hidden/moving targets, and respect source Z levels. Alt bypasses snapping. Bézier projections use actual curves; offset platform boundaries use the same samples as rendering. Target caches assume immutable document objects; never mutate objects in place.
