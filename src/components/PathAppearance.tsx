@@ -1,3 +1,4 @@
+import type { Material } from "../model/renderPlan";
 import { attachedBands } from "../model/trackPlatform";
 import { useMemo } from "react";
 import { Group, Line, Path, Shape } from "react-konva";
@@ -15,11 +16,13 @@ export default function PathAppearance({
   selected,
   edgeSide = 1,
   hitWidth,
+  material,
 }: {
   path: PathObject;
   selected: boolean;
   edgeSide?: number;
   hitWidth: number;
+  material?: Material;
 }) {
   const geometry = useMemo(() => {
     if (path.kind === "placeholder") return null;
@@ -59,7 +62,7 @@ export default function PathAppearance({
   );
   return (
     <Group>
-      {selected && (
+      {selected && (!material || material === "bed" || material === "path") && (
         <Path
           data={pathData(path)}
           stroke="#54a58e"
@@ -77,52 +80,57 @@ export default function PathAppearance({
         />
       ) : path.kind === "track" && geometry ? (
         <>
-          <Line
-            points={coordinates(geometry.center)}
-            stroke={trackStyle.bed}
-            strokeWidth={trackStyle.bedWidth}
-            lineJoin="round"
-            hitStrokeWidth={Math.max(trackStyle.bedWidth, hitWidth)}
-          />
-          <Shape
-            listening={false}
-            sceneFunc={(ctx) => {
-              ctx.beginPath();
-              for (const { center: p, normal: n } of geometry.sleepers) {
-                const half = trackStyle.sleeperLength / 2,
-                  w = trackStyle.sleeperWidth / 2;
-                ctx.moveTo(
-                  p.x + n.x * half - n.y * w,
-                  p.y + n.y * half + n.x * w,
-                );
-                ctx.lineTo(
-                  p.x - n.x * half - n.y * w,
-                  p.y - n.y * half + n.x * w,
-                );
-                ctx.lineTo(
-                  p.x - n.x * half + n.y * w,
-                  p.y - n.y * half - n.x * w,
-                );
-                ctx.lineTo(
-                  p.x + n.x * half + n.y * w,
-                  p.y + n.y * half - n.x * w,
-                );
-                ctx.closePath();
-              }
-              ctx.setAttr("fillStyle", trackStyle.sleeper);
-              ctx.fill();
-            }}
-          />
-          {geometry.rails.map((rail, i) => (
+          {(!material || material === "bed") && (
             <Line
-              key={i}
-              points={coordinates(rail)}
-              stroke={trackStyle.rail}
-              strokeWidth={trackStyle.railWidth}
+              points={coordinates(geometry.center)}
+              stroke={trackStyle.bed}
+              strokeWidth={trackStyle.bedWidth}
               lineJoin="round"
-              listening={false}
+              hitStrokeWidth={Math.max(trackStyle.bedWidth, hitWidth)}
             />
-          ))}
+          )}
+          {(!material || material === "sleepers") && (
+            <Shape
+              listening={false}
+              sceneFunc={(ctx) => {
+                ctx.beginPath();
+                for (const { center: p, normal: n } of geometry.sleepers) {
+                  const half = trackStyle.sleeperLength / 2,
+                    w = trackStyle.sleeperWidth / 2;
+                  ctx.moveTo(
+                    p.x + n.x * half - n.y * w,
+                    p.y + n.y * half + n.x * w,
+                  );
+                  ctx.lineTo(
+                    p.x - n.x * half - n.y * w,
+                    p.y - n.y * half + n.x * w,
+                  );
+                  ctx.lineTo(
+                    p.x - n.x * half + n.y * w,
+                    p.y - n.y * half - n.x * w,
+                  );
+                  ctx.lineTo(
+                    p.x + n.x * half + n.y * w,
+                    p.y + n.y * half - n.x * w,
+                  );
+                  ctx.closePath();
+                }
+                ctx.setAttr("fillStyle", trackStyle.sleeper);
+                ctx.fill();
+              }}
+            />
+          )}
+          {(!material || material === "rails") &&
+            geometry.rails.map((rail, i) => (
+              <Line
+                key={i}
+                points={coordinates(rail)}
+                stroke={trackStyle.rail}
+                strokeWidth={trackStyle.railWidth}
+                lineJoin="round"
+                listening={false}
+              />
+            ))}
         </>
       ) : (
         geometry?.bands.map((b, i) => (
@@ -135,15 +143,16 @@ export default function PathAppearance({
           />
         ))
       )}
-      {attached.map((b, i) => (
-        <Line
-          key={"attached" + i}
-          points={b.points}
-          closed
-          fill={b.color}
-          strokeWidth={0}
-        />
-      ))}
+      {(!material || material === "edge") &&
+        attached.map((b, i) => (
+          <Line
+            key={"attached" + i}
+            points={b.points}
+            closed
+            fill={b.color}
+            strokeWidth={0}
+          />
+        ))}
       {path.kind === "edge" && (
         <Path
           data={pathData(path)}

@@ -1,3 +1,5 @@
+import { renderPlan, edgeSideFor } from "../model/renderPlan";
+import ObjectHitShape from "./ObjectHitShape";
 import { resolveSnap, type SnapResult } from "../model/snapping";
 import EdgeRangeHandles from "./EdgeRangeHandles";
 import type { EdgeEditing } from "./TrackPlatformProperties";
@@ -210,6 +212,8 @@ export default function Canvas({
     },
     draggable: tool === "select" && !space && !(editing && o.id === selected),
     onDragStart: () => select(o.id),
+    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) =>
+      setPreview(translate(o, e.target.x(), e.target.y())),
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       const dx = e.target.x(),
         dy = e.target.y();
@@ -337,13 +341,10 @@ export default function Canvas({
       >
         <Layer listening={false}>{lines}</Layer>
         <Layer>
-          {[
-            ...station.objects.filter((o) => o.type === "area"),
-            ...station.objects.filter((o) => o.type !== "area"),
-          ].map((original) => {
+          {renderPlan(station.objects).map(({ object: original, material }) => {
             const o = preview?.id === original.id ? preview : original;
             return (
-              <Group key={o.id} {...handle(o)}>
+              <Group key={original.id + material} listening={false}>
                 {o.type === "area" ? (
                   <Path
                     data={pathData(o) + " Z"}
@@ -353,45 +354,28 @@ export default function Canvas({
                   />
                 ) : (
                   <PathAppearance
+                    material={material}
                     hitWidth={20 / view.scale}
                     path={o}
                     selected={o.id === selected}
-                    edgeSide={(() => {
-                      // Direct edge bands toward the nearest platform surface.
-                      const platforms = station.objects.filter(
-                        (a) => a.type === "area" && a.kind === "platform",
-                      );
-                      let side = 1,
-                        nearest = Infinity;
-                      const end = o.segments[0]?.end ?? o.start;
-                      for (const area of platforms) {
-                        if (area.type !== "area") continue;
-                        const anchors = points(area);
-                        const c = anchors.reduce(
-                          (p, v) => ({
-                            x: p.x + v.x / anchors.length,
-                            y: p.y + v.y / anchors.length,
-                          }),
-                          { x: 0, y: 0 },
-                        );
-                        const d = Math.hypot(c.x - o.start.x, c.y - o.start.y);
-                        if (d < nearest) {
-                          nearest = d;
-                          side =
-                            (end.x - o.start.x) * (c.y - o.start.y) -
-                              (end.y - o.start.y) * (c.x - o.start.x) >=
-                            0
-                              ? 1
-                              : -1;
-                        }
-                      }
-                      return side;
-                    })()}
+                    edgeSide={edgeSideFor(o, station.objects)}
                   />
                 )}
               </Group>
             );
           })}
+          {renderPlan(station.objects)
+            .filter((item) => item.material !== "sleepers")
+            .map(({ object, material }) => (
+              <Group key={"hit" + object.id + material} {...handle(object)}>
+                <ObjectHitShape
+                  object={object}
+                  scale={view.scale}
+                  material={material}
+                  edgeSide={edgeSideFor(object, station.objects)}
+                />
+              </Group>
+            ))}
           {draft.length > 0 && (
             <Group listening={false}>
               {tool === "area" ? (

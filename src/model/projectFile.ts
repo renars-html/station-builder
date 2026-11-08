@@ -102,11 +102,16 @@ export function parseProject(text: string): Station {
       const o = record(v, "Object"),
         base = {
           id: id(o.id),
+          ...(o.z === undefined
+            ? {}
+            : { z: number(o.z, "Z level", -1000, 1000) }),
           name:
             typeof o.name === "string" && o.name.length <= 200
               ? o.name
               : string(o.name, "Object name"),
         };
+      if (o.z !== undefined && !Number.isInteger(o.z))
+        throw new Error("Z level must be an integer.");
       if (o.type === "path") {
         if (typeof o.kind !== "string" || !Object.hasOwn(pathKinds, o.kind))
           throw new Error("Unknown path kind.");

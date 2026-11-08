@@ -1,3 +1,4 @@
+import { stackingOrder } from "./model/renderPlan";
 import PathEditing from "./components/PathEditing";
 import ProjectFiles from "./components/ProjectFiles";
 import PathMeasurements from "./components/PathMeasurements";
@@ -237,27 +238,30 @@ export default function App() {
             <b>{station.objects.length}</b>
           </div>
           <div className="object-list">
-            {[...station.objects].reverse().map((o) => (
-              <button
-                className={
-                  "object-row " + (selected === o.id ? "selected" : "")
-                }
-                key={o.id}
-                onClick={() => {
-                  select(o.id);
-                  changeTool("select");
-                }}
-              >
-                {o.type === "area" ? (
-                  <i style={{ background: colors[o.kind] }} />
-                ) : o.type === "path" && o.kind === "track" ? (
-                  <Route size={14} />
-                ) : (
-                  <Spline size={14} />
-                )}
-                <span>{o.name}</span>
-              </button>
-            ))}
+            {stackingOrder(station.objects)
+              .reverse()
+              .map((o) => (
+                <button
+                  className={
+                    "object-row " + (selected === o.id ? "selected" : "")
+                  }
+                  key={o.id}
+                  onClick={() => {
+                    select(o.id);
+                    changeTool("select");
+                  }}
+                >
+                  {o.type === "area" ? (
+                    <i style={{ background: colors[o.kind] }} />
+                  ) : o.type === "path" && o.kind === "track" ? (
+                    <Route size={14} />
+                  ) : (
+                    <Spline size={14} />
+                  )}
+                  <span>{o.name}</span>
+                  <small>Z{o.z ?? 0}</small>
+                </button>
+              ))}
           </div>
           <div className="sidebar-bottom">
             <span className="live-dot" /> EDITOR V0.1 <span>2D / TOP VIEW</span>
@@ -447,6 +451,29 @@ export default function App() {
                   }
                 />
               </label>
+              <label>
+                Z level
+                <input
+                  type="number"
+                  min="-1000"
+                  max="1000"
+                  step="1"
+                  value={active.z ?? 0}
+                  onChange={(e) => {
+                    const z = e.target.valueAsNumber;
+                    if (Number.isInteger(z) && z >= -1000 && z <= 1000)
+                      commit(
+                        station.objects.map((o) =>
+                          o.id === active.id ? { ...o, z } : o,
+                        ),
+                      );
+                  }}
+                />
+              </label>
+              <p className="muted">
+                Higher levels render above lower levels. Use negative levels for
+                underpasses and positive levels for bridges.
+              </p>
               <div className="property-stats">
                 <div>
                   <span>Geometry</span>

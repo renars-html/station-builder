@@ -47,7 +47,7 @@ Acceptance:
 - JSON version migration and curve geometry/closure/history regression tests pass.
 - Self-intersection repair, holes and boolean operations remain later work.
 
-## M4 — Elevation and material rendering order [planned]
+## M4 — Elevation and material rendering order [complete]
 
 Plan: numeric integer Z levels on every object and a deterministic render plan separating materials within each level.
 Acceptance:
@@ -73,3 +73,5 @@ M1 evidence: 32 tests pass; explicit TypeScript check and production build pass.
 M2 evidence: 40 tests pass, TypeScript and production build pass. Snap prioritizes anchors/boundaries within 10 screen pixels before the grid, excludes the moved node and its own boundary, and shows a marker. Extend preserves path identity/type/attachments and undoable draft state. Midpoint splitting uses de Casteljau and retains curve shape. Endpoint connections are geometric coincidence, not persistent graph junctions (M6).
 
 M3 evidence: 46 tests pass; TypeScript and production build pass. Areas now share start/segments with paths; schema v2 writes curved areas and migrates v1 vertex polygons. Closing curve controls and first-anchor edits preserve closure. Exact polynomial area integration replaced sampled area estimates after a curve-splitting regression exposed sampling drift. Fill dropdown, control handles, midpoint insertion, shared snapping and draft history are implemented. Self-intersections with nonzero signed area are not repaired/rejected; holes and booleans remain out of scope.
+
+M4 evidence: 50 tests pass; TypeScript and production build pass. Every object supports an integer Z level (-1000..1000), defaulting to zero for old files. Render and hit plans share level/material ordering. Beds/sleepers/rails are global passes per level; attached edges inherit the track level. Transparent interaction shapes keep whole-object dragging synchronized across material passes. Numeric levels represent stacking, not physical bridge clearance or grades. Browser interaction QA remains M5 and has not been claimed.

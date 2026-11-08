@@ -10,6 +10,8 @@ export type AreaKind = "platform" | "grass" | "road" | "other";
 interface Base {
   id: string;
   name: string;
+  /** Rendering elevation; absent in older projects means ground level (0). */
+  z?: number;
 }
 // Add future path kinds here; geometry remains independent of its use.
 export const pathKinds = {
