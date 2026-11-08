@@ -137,109 +137,18 @@ export function setPoint(
   }
   return copy;
 }
-const path = (id: string, name: string, y: number): PathObject => ({
-  id,
-  name,
-  type: "path",
-  kind: "track",
-  start: { x: 80, y },
-  segments: [
-    { type: "line", end: { x: 650, y } },
-    {
-      type: "cubic",
-      control1: { x: 800, y },
-      control2: { x: 810, y: y + 120 },
-      end: { x: 1040, y: y + 120 },
-    },
-  ],
-});
 export const example: Station = {
   version: 1,
   objects: [
     {
-      id: "grass-1",
-      name: "North green",
-      type: "area",
-      kind: "grass",
-      vertices: [
-        { x: 70, y: 90 },
-        { x: 1020, y: 90 },
-        { x: 1020, y: 180 },
-        { x: 70, y: 180 },
-      ],
-    },
-    {
-      id: "road-1",
-      name: "Station approach",
-      type: "area",
-      kind: "road",
-      vertices: [
-        { x: 70, y: 570 },
-        { x: 1040, y: 570 },
-        { x: 1040, y: 625 },
-        { x: 70, y: 625 },
-      ],
-    },
-    {
-      id: "platform-1",
-      name: "Island platform 01",
-      type: "area",
-      kind: "platform",
-      vertices: [
-        { x: 160, y: 260 },
-        { x: 670, y: 260 },
-        { x: 760, y: 300 },
-        { x: 670, y: 340 },
-        { x: 160, y: 340 },
-        { x: 120, y: 300 },
-      ],
-    },
-    {
-      id: "platform-2",
-      name: "Side platform 02",
-      type: "area",
-      kind: "platform",
-      vertices: [
-        { x: 160, y: 435 },
-        { x: 660, y: 435 },
-        { x: 740, y: 475 },
-        { x: 160, y: 475 },
-      ],
-    },
-    path("track-1", "Track 01 · Main line", 220),
-    path("track-2", "Track 02 · Main line", 380),
-    path("track-3", "Track 03 · Siding", 515),
-    {
-      id: "edge-1",
-      name: "Platform 01 · North edge",
+      id: "track-1",
+      name: "Track 01",
       type: "path",
-      kind: "edge",
-      start: { x: 160, y: 260 },
-      segments: [
-        { type: "line", end: { x: 670, y: 260 } },
-        { type: "line", end: { x: 760, y: 300 } },
-      ],
-    },
-    {
-      id: "edge-2",
-      name: "Platform 01 · South edge",
-      type: "path",
-      kind: "edge",
-      start: { x: 160, y: 340 },
-      segments: [
-        { type: "line", end: { x: 670, y: 340 } },
-        { type: "line", end: { x: 760, y: 300 } },
-      ],
-    },
-    {
-      id: "edge-3",
-      name: "Platform 02 · Edge",
-      type: "path",
-      kind: "edge",
-      start: { x: 160, y: 435 },
-      segments: [
-        { type: "line", end: { x: 660, y: 435 } },
-        { type: "line", end: { x: 740, y: 475 } },
+      kind: "track",
+      start: { x: 425, y: 240 },
+      segments: [{ type: "line", end: { x: 475, y: 240 } }],
+      platformEdges: [
+        { id: "platform-edge-1", side: "right", distance: 0, start: 0, end: 1 },
       ],
     },
   ],

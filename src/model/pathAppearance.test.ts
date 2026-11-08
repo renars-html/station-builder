@@ -20,7 +20,7 @@ const path: PathObject = {
 describe("path appearance geometry", () => {
   it("keeps sleeper spacing continuous across path segment boundaries", () => {
     const ties = sleepers(flattenPath(path));
-    expect(ties).toHaveLength(6);
+    expect(ties).toHaveLength(4);
     ties.forEach((tie, i) => {
       expect(tie.center.x).toBeCloseTo(trackStyle.sleeperPitch * (i + 0.5));
       expect(tie.center.y).toBe(0);

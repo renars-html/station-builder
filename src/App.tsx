@@ -1,3 +1,4 @@
+import PathMeasurements from "./components/PathMeasurements";
 import TrackPlatformProperties, {
   type EdgeEditing,
 } from "./components/TrackPlatformProperties";
@@ -152,8 +153,18 @@ export default function App() {
     track: station.objects.filter(
       (o) => o.type === "path" && o.kind === "track",
     ).length,
-    edge: station.objects.filter((o) => o.type === "path" && o.kind === "edge")
-      .length,
+    edge: station.objects.reduce(
+      (total, o) =>
+        total +
+        (o.type === "path"
+          ? o.kind === "edge"
+            ? 1
+            : o.kind === "track"
+              ? (o.platformEdges?.length ?? 0)
+              : 0
+          : 0),
+      0,
+    ),
     area: station.objects.filter((o) => o.type === "area").length,
   };
   return (
@@ -521,6 +532,7 @@ export default function App() {
               </p>
             </div>
           )}
+          {active?.type === "path" && <PathMeasurements path={active} />}
           <div className="overview">
             <div className="section-heading">STATION OVERVIEW</div>
             <div>

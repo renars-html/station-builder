@@ -17,7 +17,7 @@ Vite prints the local development URL. `dist/` contains the production build. No
 
 ## Use
 
-A sample station is loaded on startup. Select and delete objects to replace it with your own design.
+The startup template is one 50 m straight track with a full-length attached platform edge. Select and delete objects to replace it with your own design.
 
 - **Select (V):** click an object or its entry in Objects. Drag it to move. Drag outlined nodes to change endpoints, Bézier controls, or polygon vertices. The inspector edits its name and surface type.
 - **Pan (H):** drag the view. Hold Space and drag or use the middle mouse button with any tool.
@@ -37,7 +37,7 @@ Each tool also has a brief in-app guide. Coordinates and geometry use meters; sc
 ## Architecture
 
 - `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/quadratic/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Polygon surfaces are independent objects; edges are separate path objects. IDs use `crypto.randomUUID()`.
-- `src/model/pathAppearance.ts`: metric rail offsets and arc-length sleeper placement for straight and curved paths. Tracks use 1.435 m rail spacing, a 3.4 m brown bed, and 2.6 m concrete sleepers (0.28 m wide on 0.64 m centers). Platform edges use white/asphalt/white/asphalt bands of 0.2/1.0/0.9/0.9 m, directed toward the nearest platform surface. Platform fills match the asphalt. Rails are 0.14 m thick. At 100% zoom each meter spans 12 screen pixels; grid lines are 10 m apart. Area labels are hidden. Only left-button dragging in Select mode moves objects or nodes; middle-button dragging always pans. Zoom supports up to 2400% for inspecting these details.
+- `src/model/pathAppearance.ts`: metric rail offsets and arc-length sleeper placement for straight and curved paths. Tracks use 1.435 m rail spacing, a 3.4 m brown bed, and 2.6 m concrete sleepers (0.42 m wide on 0.96 m centers, leaving 0.54 m gaps). Platform edges use white/asphalt/white/asphalt bands of 0.2/1.0/0.9/0.9 m, directed toward the nearest platform surface. Platform fills match the asphalt. Rails are 0.14 m thick. At 100% zoom each meter spans 12 screen pixels; grid lines are 10 m apart. Area labels are hidden. Only left-button dragging in Select mode moves objects or nodes; middle-button dragging always pans. Zoom supports up to 2400% for inspecting these details.
 - `src/model/pathDraft.ts`: typed standard/control draft points and pure line/quadratic/cubic construction.
 - `src/store/editor.ts`: Zustand document, selection, tools, and bounded (100-step) snapshot undo/redo. Document edits and drawing drafts share history snapshots; viewport and selection changes do not.
 - `src/components/Canvas.tsx`: Konva rendering, screen-to-world conversion, draft tools, node handles, panning, zooming, and grid. Drag previews stay outside the document until committed.
@@ -57,8 +57,10 @@ Work is held in memory and resets on reload. JSON export is supported; import an
 
 ## Track-attached platform edge
 
-Select a Track path and choose **Platform edge → Add platform edge**. The attachment initially spans the entire track with zero gap from the trackbed. Choose Left/Right relative to the direction from the path start to its end, and set a nonnegative distance from the outside of the trackbed in meters. The platform bands extend outward from the track.
+Select a Track path and choose **Platform edge → Add platform edge**. The attachment initially spans the entire track with zero gap from the trackbed. Use **Flip side** to switch Left/Right relative to the direction from the path start to its end, and set a nonnegative distance from the outside of the trackbed in meters. The platform bands extend outward from the track.
 
 Choose **Edit start / end** to drag the green start and orange end handles. Handles project onto the track centerline, including curves, and cannot cross. Choose **Done editing** to return to normal geometry editing. Middle-button dragging continues to pan. Each completed handle drag, property edit, addition, or removal supports undo/redo. Attachments move and reshape with the track.
 
 `TrackPlatformEdge` stores an ID, side, distance, and normalized arc-length start/end positions (0–1). These fractions preserve relative placement when the track length changes. `PathObject.platformEdges` is a collection to allow future expansion; this version exposes exactly one attachment per track. No additional platform polygon or independently movable path is created. `src/model/trackPlatform.ts` supplies renderer-independent projection, clipping, and attachment band geometry; curve positions use the same sampled path as the renderer.
+
+The Properties panel displays the selected path’s length in meters directly above Station overview, for placeholder, track, and standalone platform-edge paths. Tracks also display attached platform-edge lengths along their offset outer boundary. Curved lengths use sampled arc lengths. Measurements update after geometry, side, distance, or range changes.

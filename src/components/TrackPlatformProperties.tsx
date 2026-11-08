@@ -47,18 +47,20 @@ export default function TrackPlatformProperties({
         </button>
       ) : (
         <>
-          <label>
-            Side
-            <select
-              value={edge.side}
-              onChange={(e) =>
-                patch({ side: e.target.value as TrackPlatformEdge["side"] })
-              }
-            >
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-            </select>
-          </label>
+          <div className="property-stats">
+            <div>
+              <span>Side</span>
+              <b>{edge.side === "left" ? "Left" : "Right"}</b>
+            </div>
+          </div>
+          <button
+            className="edge-action"
+            onClick={() =>
+              patch({ side: edge.side === "left" ? "right" : "left" })
+            }
+          >
+            Flip side
+          </button>
           <label>
             Distance from trackbed (m)
             <input

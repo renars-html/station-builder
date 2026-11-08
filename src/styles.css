@@ -712,3 +712,12 @@ select {
 .property-body {
   flex-shrink: 0;
 }
+.path-measurements {
+  border-top: 1px solid #e1e6da;
+  padding: 20px 0 8px;
+  flex-shrink: 0;
+}
+.path-measurements .section-heading {
+  padding: 0;
+  margin-bottom: 12px;
+}
