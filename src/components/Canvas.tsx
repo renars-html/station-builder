@@ -1,3 +1,5 @@
+import EdgeRangeHandles from "./EdgeRangeHandles";
+import type { EdgeEditing } from "./TrackPlatformProperties";
 import { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Line, Path, Group, Circle } from "react-konva";
 import Konva from "konva";
@@ -25,6 +27,7 @@ export interface View {
   scale: number;
 }
 interface Props {
+  editingEdge: EdgeEditing | null;
   grid: boolean;
   snap: boolean;
   kind: AreaKind;
@@ -34,6 +37,7 @@ interface Props {
   onPosition: (p: Point) => void;
 }
 export default function Canvas({
+  editingEdge,
   grid,
   snap,
   kind,
@@ -151,6 +155,14 @@ export default function Canvas({
   finishRef.current = finish;
   const active = station.objects.find((o) => o.id === selected);
   const actual = preview ?? active;
+  const editing =
+    tool === "select" &&
+    actual?.type === "path" &&
+    actual.kind === "track" &&
+    editingEdge?.pathId === actual.id &&
+    actual.platformEdges?.some((e) => e.id === editingEdge.edgeId)
+      ? editingEdge
+      : null;
   const handle = (o: StationObject) => ({
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (tool === "select" && !space && e.evt.button === 0) {
@@ -158,7 +170,7 @@ export default function Canvas({
         select(o.id);
       }
     },
-    draggable: tool === "select" && !space,
+    draggable: tool === "select" && !space && !(editing && o.id === selected),
     onDragStart: () => select(o.id),
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       const dx = e.target.x(),
@@ -394,7 +406,16 @@ export default function Canvas({
               ))}
             </Group>
           )}
-          {tool === "select" && actual && (
+          {editing && actual?.type === "path" && (
+            <EdgeRangeHandles
+              track={actual}
+              edgeId={editing.edgeId}
+              scale={view.scale}
+              space={space}
+              onPreview={setPreview}
+            />
+          )}
+          {tool === "select" && actual && !editing && (
             <Group>
               {actual.type !== "area" &&
                 actual.segments.map((s, i) =>

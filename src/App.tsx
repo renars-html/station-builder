@@ -1,3 +1,6 @@
+import TrackPlatformProperties, {
+  type EdgeEditing,
+} from "./components/TrackPlatformProperties";
 import { BASE_SCALE, MIN_SCALE, MAX_SCALE, zoomPercent } from "./model/view";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -84,7 +87,8 @@ export default function App() {
     [kind, setKind] = useState<AreaKind>("platform"),
     [view, setView] = useState<View>({ x: 30, y: 15, scale: BASE_SCALE }),
     [position, setPosition] = useState<Point>({ x: 0, y: 0 }),
-    [help, setHelp] = useState(false);
+    [help, setHelp] = useState(false),
+    [editingEdge, setEditingEdge] = useState<EdgeEditing | null>(null);
   const finishRef = useRef<(() => void) | null>(null);
   const active = station.objects.find((o) => o.id === selected);
   const current = tools.find((t) => t.id === tool)!;
@@ -113,6 +117,7 @@ export default function App() {
       }
       if (e.ctrlKey || e.metaKey) return;
       if (k === "escape") {
+        setEditingEdge(null);
         setDraft([]);
         select(null);
       } else if (k === "enter") {
@@ -301,6 +306,7 @@ export default function App() {
           </div>
           <div className="canvas-wrap">
             <Canvas
+              editingEdge={editingEdge}
               grid={grid}
               snap={snap}
               kind={kind}
@@ -468,6 +474,13 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+              )}
+              {active.type === "path" && active.kind === "track" && (
+                <TrackPlatformProperties
+                  track={active}
+                  editing={editingEdge}
+                  setEditing={setEditingEdge}
+                />
               )}
               {active.type === "area" && (
                 <label>

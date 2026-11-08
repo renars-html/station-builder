@@ -54,3 +54,11 @@ Work is held in memory and resets on reload. JSON export is supported; import an
 ## Verification
 
 `npm run build` and `npm test` pass (geometry and drawing-history regression tests). Interactive browser QA could not be completed in the managed environment: `sites-preview` reported a browser relay readiness timeout. Manual checking of drawing, node dragging, and view controls in a local desktop browser is recommended before relying on the editor for production work.
+
+## Track-attached platform edge
+
+Select a Track path and choose **Platform edge → Add platform edge**. The attachment initially spans the entire track with zero gap from the trackbed. Choose Left/Right relative to the direction from the path start to its end, and set a nonnegative distance from the outside of the trackbed in meters. The platform bands extend outward from the track.
+
+Choose **Edit start / end** to drag the green start and orange end handles. Handles project onto the track centerline, including curves, and cannot cross. Choose **Done editing** to return to normal geometry editing. Middle-button dragging continues to pan. Each completed handle drag, property edit, addition, or removal supports undo/redo. Attachments move and reshape with the track.
+
+`TrackPlatformEdge` stores an ID, side, distance, and normalized arc-length start/end positions (0–1). These fractions preserve relative placement when the track length changes. `PathObject.platformEdges` is a collection to allow future expansion; this version exposes exactly one attachment per track. No additional platform polygon or independently movable path is created. `src/model/trackPlatform.ts` supplies renderer-independent projection, clipping, and attachment band geometry; curve positions use the same sampled path as the renderer.

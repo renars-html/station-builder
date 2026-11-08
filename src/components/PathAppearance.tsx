@@ -1,3 +1,4 @@
+import { attachedBands } from "../model/trackPlatform";
 import { useMemo } from "react";
 import { Group, Line, Path, Shape } from "react-konva";
 import { pathData, type PathObject, type Point } from "../model/station";
@@ -47,6 +48,15 @@ export default function PathAppearance({
     });
     return { center, rails: [], sleepers: [], bands };
   }, [path, edgeSide]);
+  const attached = useMemo(
+    () =>
+      path.kind === "track" && geometry
+        ? (path.platformEdges ?? []).flatMap((edge) =>
+            attachedBands(geometry.center, edge),
+          )
+        : [],
+    [path, geometry],
+  );
   return (
     <Group>
       {selected && (
@@ -125,6 +135,15 @@ export default function PathAppearance({
           />
         ))
       )}
+      {attached.map((b, i) => (
+        <Line
+          key={"attached" + i}
+          points={b.points}
+          closed
+          fill={b.color}
+          strokeWidth={0}
+        />
+      ))}
       {path.kind === "edge" && (
         <Path
           data={pathData(path)}

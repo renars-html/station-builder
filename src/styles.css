@@ -687,3 +687,28 @@ select {
   font-size: 11px;
   color: #75856a;
 }
+.track-platform-properties {
+  border-top: 1px solid #dde3d7;
+  margin-top: 20px;
+  padding-top: 15px;
+}
+.track-platform-properties h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.edge-action {
+  border: 1px solid #ccd8c4;
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: #edf2e8;
+  width: 100%;
+  font-size: 11px;
+}
+.inspector {
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.property-body {
+  flex-shrink: 0;
+}

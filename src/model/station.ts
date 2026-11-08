@@ -18,11 +18,22 @@ export const pathKinds = {
   edge: "Platform edge",
 } as const;
 export type PathKind = keyof typeof pathKinds;
+export interface TrackPlatformEdge {
+  id: string;
+  side: "left" | "right";
+  /** Gap from the outside of the trackbed, in meters. */
+  distance: number;
+  /** Normalized distances along the track centerline, from 0 to 1. */
+  start: number;
+  end: number;
+}
 export interface PathObject extends Base {
   type: "path";
   kind: PathKind;
   start: Point;
   segments: Segment[];
+  // Collection allows future multiple edges; the editor currently allows one.
+  platformEdges?: TrackPlatformEdge[];
 }
 export interface AreaObject extends Base {
   type: "area";
