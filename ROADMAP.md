@@ -37,7 +37,7 @@ Acceptance:
 - Tests cover snapping priority/tolerance, curve splitting, extension, and history branching.
 - Geometric endpoint joins are supported here; persistent network connectivity belongs to M6.
 
-## M3 — Shared curved area boundaries [planned]
+## M3 — Shared curved area boundaries [complete]
 
 Plan: unify area boundaries with ordered line/quadratic/cubic segments; migrate legacy vertex areas on load.
 Acceptance:
@@ -71,3 +71,5 @@ Baseline: 25 tests pass. Managed `sites-preview` relay repeatedly times out; att
 M1 evidence: 32 tests pass; explicit TypeScript check and production build pass. Open validates into a new document before one undoable replacement. Recovery writes only completed document geometry, reports storage/validation errors, and preserves unreadable recovery rather than overwriting it. Browser storage/file-picker interaction remains part of M5 browser QA.
 
 M2 evidence: 40 tests pass, TypeScript and production build pass. Snap prioritizes anchors/boundaries within 10 screen pixels before the grid, excludes the moved node and its own boundary, and shows a marker. Extend preserves path identity/type/attachments and undoable draft state. Midpoint splitting uses de Casteljau and retains curve shape. Endpoint connections are geometric coincidence, not persistent graph junctions (M6).
+
+M3 evidence: 46 tests pass; TypeScript and production build pass. Areas now share start/segments with paths; schema v2 writes curved areas and migrates v1 vertex polygons. Closing curve controls and first-anchor edits preserve closure. Exact polynomial area integration replaced sampled area estimates after a curve-splitting regression exposed sampling drift. Fill dropdown, control handles, midpoint insertion, shared snapping and draft history are implemented. Self-intersections with nonzero signed area are not repaired/rejected; holes and booleans remain out of scope.

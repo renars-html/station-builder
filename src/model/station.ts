@@ -38,11 +38,12 @@ export interface PathObject extends Base {
 export interface AreaObject extends Base {
   type: "area";
   kind: AreaKind;
-  vertices: Point[];
+  start: Point;
+  segments: Segment[];
 }
 export type StationObject = PathObject | AreaObject;
 export interface Station {
-  version: 1;
+  version: 2;
   objects: StationObject[];
 }
 export const colors: Record<AreaKind, string> = {
@@ -51,7 +52,7 @@ export const colors: Record<AreaKind, string> = {
   road: "#bfc4c2",
   other: "#d6c9b5",
 };
-export function pathData(o: PathObject): string {
+export function pathData(o: Pick<PathObject, "start" | "segments">): string {
   return (
     `M ${o.start.x} ${o.start.y} ` +
     o.segments
@@ -66,53 +67,52 @@ export function pathData(o: PathObject): string {
   );
 }
 export function points(o: StationObject): Point[] {
-  return o.type === "area"
-    ? o.vertices
-    : [
-        o.start,
-        ...o.segments.flatMap((s) =>
-          s.type === "line"
-            ? [s.end]
-            : s.type === "quadratic"
-              ? [s.control, s.end]
-              : [s.control1, s.control2, s.end],
-        ),
-      ];
+  const result = [
+    o.start,
+    ...o.segments.flatMap((s) =>
+      s.type === "line"
+        ? [s.end]
+        : s.type === "quadratic"
+          ? [s.control, s.end]
+          : [s.control1, s.control2, s.end],
+    ),
+  ];
+  return o.type === "area" ? result.slice(0, -1) : result;
 }
-export function translate(
-  o: StationObject,
+export function translate<T extends StationObject>(
+  o: T,
   dx: number,
   dy: number,
-): StationObject {
+): T {
   const p = (v: Point) => ({ x: v.x + dx, y: v.y + dy });
-  return o.type === "area"
-    ? { ...o, vertices: o.vertices.map(p) }
-    : {
-        ...o,
-        start: p(o.start),
-        segments: o.segments.map((s) =>
-          s.type === "line"
-            ? { ...s, end: p(s.end) }
-            : s.type === "quadratic"
-              ? { ...s, control: p(s.control), end: p(s.end) }
-              : {
-                  ...s,
-                  control1: p(s.control1),
-                  control2: p(s.control2),
-                  end: p(s.end),
-                },
-        ),
-      };
+  return {
+    ...o,
+    start: p(o.start),
+    segments: o.segments.map((s) =>
+      s.type === "line"
+        ? { ...s, end: p(s.end) }
+        : s.type === "quadratic"
+          ? { ...s, control: p(s.control), end: p(s.end) }
+          : {
+              ...s,
+              control1: p(s.control1),
+              control2: p(s.control2),
+              end: p(s.end),
+            },
+    ),
+  };
 }
-export function setPoint(
-  o: StationObject,
+export function setPoint<T extends StationObject>(
+  o: T,
   index: number,
   p: Point,
-): StationObject {
+): T {
   const copy = structuredClone(o);
-  if (copy.type === "area") copy.vertices[index] = p;
-  else if (index === 0) copy.start = p;
-  else {
+  if (index === 0) {
+    copy.start = p;
+    if (copy.type === "area" && copy.segments.length)
+      copy.segments[copy.segments.length - 1].end = p;
+  } else {
     let n = 1;
     for (const s of copy.segments) {
       if (s.type === "quadratic" && n++ === index) {
@@ -138,7 +138,7 @@ export function setPoint(
   return copy;
 }
 export const example: Station = {
-  version: 1,
+  version: 2,
   objects: [
     {
       id: "track-1",

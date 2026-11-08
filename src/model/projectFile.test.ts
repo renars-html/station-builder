@@ -14,10 +14,11 @@ describe("project files", () => {
       name: "Grass",
       type: "area",
       kind: "grass",
-      vertices: [
-        { x: 0, y: 0 },
-        { x: 10, y: 0 },
-        { x: 10, y: 10 },
+      start: { x: 0, y: 0 },
+      segments: [
+        { type: "line", end: { x: 10, y: 0 } },
+        { type: "line", end: { x: 10, y: 10 } },
+        { type: "line", end: { x: 0, y: 0 } },
       ],
     });
     expect(parseProject(serializeProject(project))).toEqual(project);
@@ -51,7 +52,7 @@ describe("project files", () => {
       useEditor.getState().loadProject(parseProject("bad")),
     ).toThrow();
     expect(useEditor.getState().station).toBe(initial);
-    useEditor.getState().loadProject({ version: 1, objects: [] });
+    useEditor.getState().loadProject({ version: 2, objects: [] });
     expect(useEditor.getState().draft).toEqual([]);
     useEditor.getState().undo();
     expect(useEditor.getState().station).toEqual(initial);

@@ -1,5 +1,7 @@
+import { areaSize } from "./areaGeometry";
 import {
   colors,
+  points,
   pathKinds,
   type Point,
   type Segment,
@@ -42,9 +44,9 @@ export function parseProject(text: string): Station {
     throw new Error("Invalid JSON. Choose a station layout JSON file.");
   }
   const root = record(data, "Project");
-  if (root.version !== 1)
+  if (root.version !== 1 && root.version !== 2)
     throw new Error(
-      `Unsupported project version: ${String(root.version)}. This editor supports version 1.`,
+      `Unsupported project version: ${String(root.version)}. This editor supports versions 1 and 2.`,
     );
   const ids = new Set<string>();
   let count = 0;
@@ -111,7 +113,7 @@ export function parseProject(text: string): Station {
         const segments = list(o.segments, "Segments", 20000).map(segment);
         if (!segments.length)
           throw new Error("Paths need at least one segment.");
-        return {
+        const result: StationObject = {
           ...base,
           type: "path",
           kind: o.kind as keyof typeof pathKinds,
@@ -127,24 +129,55 @@ export function parseProject(text: string): Station {
                 ).map(attachment),
               }),
         };
+        if (
+          points(result).every(
+            (p) => p.x === result.start.x && p.y === result.start.y,
+          )
+        )
+          throw new Error("Path must have nonzero length.");
+        return result;
       }
       if (o.type === "area") {
         if (typeof o.kind !== "string" || !Object.hasOwn(colors, o.kind))
           throw new Error("Unknown area fill.");
-        const vertices = list(o.vertices, "Area vertices", 20000).map(point);
-        if (vertices.length < 3)
-          throw new Error("Areas need at least three vertices.");
+        let start: Point, segments: Segment[];
+        if (root.version === 1) {
+          const vertices = list(o.vertices, "Area vertices", 20000).map(point);
+          if (vertices.length < 3)
+            throw new Error("Areas need at least three vertices.");
+          start = vertices[0];
+          segments = [...vertices.slice(1), start].map((end) => ({
+            type: "line",
+            end,
+          }));
+        } else {
+          start = point(o.start);
+          segments = list(o.segments, "Area segments", 20000).map(segment);
+        }
+        const last = segments.at(-1)?.end;
+        if (
+          segments.length < 3 ||
+          !last ||
+          last.x !== start.x ||
+          last.y !== start.y
+        )
+          throw new Error(
+            "Area boundary must have at least three segments and close at its start.",
+          );
+        if (areaSize({ start, segments }) < 1e-6)
+          throw new Error("Area must enclose a nonzero surface.");
         return {
           ...base,
           type: "area",
           kind: o.kind as keyof typeof colors,
-          vertices,
+          start,
+          segments,
         };
       }
       throw new Error("Unknown object type.");
     },
   );
-  return { version: 1, objects };
+  return { version: 2, objects };
 }
 export function serializeProject(station: Station): string {
   return JSON.stringify(parseProject(JSON.stringify(station)), null, 2);

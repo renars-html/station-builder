@@ -57,7 +57,7 @@ describe("finished path editing", () => {
     expect(useEditor.getState().station.objects[0]).toEqual(extended);
   });
   it("does not finish a collapsed path", () => {
-    useEditor.getState().loadProject({ version: 1, objects: [] }, true);
+    useEditor.getState().loadProject({ version: 2, objects: [] }, true);
     useEditor.getState().setTool("path");
     const p: Point = { x: 0, y: 0 };
     useEditor.getState().addPoint({ ...p, role: "standard" });

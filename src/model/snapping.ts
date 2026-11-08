@@ -19,7 +19,7 @@ export function resolveSnap(
     const ps = points(object);
     let n = 0;
     const controls = new Set<number>();
-    if (object.type === "path") {
+    {
       n = 1;
       for (const s of object.segments) {
         if (s.type === "quadratic") controls.add(n++);
@@ -48,10 +48,7 @@ export function resolveSnap(
   let boundary: Point | undefined;
   for (const object of objects) {
     if (object.id === excludeObjectId) continue;
-    const line =
-      object.type === "path"
-        ? flattenPath(object)
-        : [...object.vertices, object.vertices[0]];
+    const line = flattenPath(object);
     const q = pointAlong(line, projectAlong(line, p));
     const d = Math.hypot(q.x - p.x, q.y - p.y);
     if (d <= best) {

@@ -34,10 +34,11 @@ describe("snapping", () => {
       name: "Grass",
       type: "area" as const,
       kind: "grass" as const,
-      vertices: [
-        { x: 20, y: 20 },
-        { x: 30, y: 20 },
-        { x: 30, y: 30 },
+      start: { x: 20, y: 20 },
+      segments: [
+        { type: "line" as const, end: { x: 30, y: 20 } },
+        { type: "line" as const, end: { x: 30, y: 30 } },
+        { type: "line" as const, end: { x: 20, y: 20 } },
       ],
     };
     expect(resolveSnap({ x: 20.2, y: 20.1 }, [area], 12).kind).toBe("anchor");

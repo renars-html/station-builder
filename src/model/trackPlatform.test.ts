@@ -88,7 +88,7 @@ describe("track-attached platform geometry", () => {
       segments: [{ type: "line", end: { x: 100, y: 0 } }],
     };
     useEditor.setState({
-      station: { version: 1, objects: [track] },
+      station: { version: 2, objects: [track] },
       draft: [],
       past: [],
       future: [],

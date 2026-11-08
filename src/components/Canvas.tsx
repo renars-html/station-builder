@@ -70,6 +70,7 @@ export default function Canvas({
     addPoint,
     removeLastPoint,
     finishPath,
+    finishArea,
   } = useEditor();
   useEffect(() => {
     const observer = new ResizeObserver((e) => {
@@ -162,7 +163,7 @@ export default function Canvas({
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
-        tool !== "path" ||
+        (tool !== "path" && tool !== "area") ||
         e.key.toLowerCase() !== "e" ||
         e.repeat ||
         e.ctrlKey ||
@@ -183,16 +184,8 @@ export default function Canvas({
     return () => window.removeEventListener("keydown", key);
   }, [tool, hover, space, addPoint]);
   const finish = () => {
-    if (tool === "area" && draft.length >= 3) {
-      const o: StationObject = {
-        id: crypto.randomUUID(),
-        name: kind[0].toUpperCase() + kind.slice(1) + " area",
-        type: "area",
-        kind,
-        vertices: draft.map(({ x, y }) => ({ x, y })),
-      };
-      commit([...station.objects, o], true);
-      select(o.id);
+    if (tool === "area") {
+      finishArea(kind);
     } else if (tool === "path") {
       finishPath();
     }
@@ -308,7 +301,7 @@ export default function Canvas({
           } else {
             if (
               tool === "area" &&
-              draft.length >= 3 &&
+              draft.filter((p) => p.role === "standard").length >= 3 &&
               Math.hypot(p.x - draft[0].x, p.y - draft[0].y) < 12 / view.scale
             ) {
               finish();
@@ -352,12 +345,11 @@ export default function Canvas({
             return (
               <Group key={o.id} {...handle(o)}>
                 {o.type === "area" ? (
-                  <Line
-                    points={o.vertices.flatMap((p) => [p.x, p.y])}
-                    closed
+                  <Path
+                    data={pathData(o) + " Z"}
                     fill={colors[o.kind]}
                     stroke={o.id === selected ? "#277d6c" : "#a7afa3"}
-                    strokeWidth={o.id === selected ? 2 : 1}
+                    strokeWidth={(o.id === selected ? 2 : 1) / view.scale}
                   />
                 ) : (
                   <PathAppearance
@@ -374,10 +366,11 @@ export default function Canvas({
                       const end = o.segments[0]?.end ?? o.start;
                       for (const area of platforms) {
                         if (area.type !== "area") continue;
-                        const c = area.vertices.reduce(
+                        const anchors = points(area);
+                        const c = anchors.reduce(
                           (p, v) => ({
-                            x: p.x + v.x / area.vertices.length,
-                            y: p.y + v.y / area.vertices.length,
+                            x: p.x + v.x / anchors.length,
+                            y: p.y + v.y / anchors.length,
                           }),
                           { x: 0, y: 0 },
                         );
@@ -402,25 +395,28 @@ export default function Canvas({
           {draft.length > 0 && (
             <Group listening={false}>
               {tool === "area" ? (
-                <Line
-                  points={[...draft, ...(hover ? [hover] : [])].flatMap((p) => [
-                    p.x,
-                    p.y,
-                  ])}
-                  closed
+                <Path
+                  data={
+                    pathData({
+                      start: draft[0],
+                      segments: draftGeometry([
+                        ...draft,
+                        ...(hover
+                          ? [{ ...hover, role: "standard" as const }]
+                          : []),
+                        draft[0],
+                      ])!.segments,
+                    }) + " Z"
+                  }
                   fill={colors[kind]}
                   opacity={0.65}
                   stroke="#277d6c"
-                  strokeWidth={2}
+                  strokeWidth={2 / view.scale}
                 />
               ) : (
                 <>
                   <Path
                     data={pathData({
-                      id: "preview",
-                      name: "Preview",
-                      type: "path",
-                      kind: "placeholder",
                       ...draftGeometry([
                         ...draft,
                         ...(hover
@@ -463,32 +459,31 @@ export default function Canvas({
           )}
           {tool === "select" && actual && !editing && (
             <Group>
-              {actual.type !== "area" &&
-                actual.segments.map((s, i) =>
-                  s.type !== "line" ? (
-                    <Line
-                      key={i}
-                      points={[
-                        (i === 0 ? actual.start : actual.segments[i - 1].end).x,
-                        (i === 0 ? actual.start : actual.segments[i - 1].end).y,
-                        ...(s.type === "quadratic"
-                          ? [s.control.x, s.control.y]
-                          : [
-                              s.control1.x,
-                              s.control1.y,
-                              s.control2.x,
-                              s.control2.y,
-                            ]),
-                        s.end.x,
-                        s.end.y,
-                      ]}
-                      stroke="#469b88"
-                      strokeWidth={1 / view.scale}
-                      dash={[4, 4]}
-                      listening={false}
-                    />
-                  ) : null,
-                )}
+              {actual.segments.map((s, i) =>
+                s.type !== "line" ? (
+                  <Line
+                    key={i}
+                    points={[
+                      (i === 0 ? actual.start : actual.segments[i - 1].end).x,
+                      (i === 0 ? actual.start : actual.segments[i - 1].end).y,
+                      ...(s.type === "quadratic"
+                        ? [s.control.x, s.control.y]
+                        : [
+                            s.control1.x,
+                            s.control1.y,
+                            s.control2.x,
+                            s.control2.y,
+                          ]),
+                      s.end.x,
+                      s.end.y,
+                    ]}
+                    stroke="#469b88"
+                    strokeWidth={1 / view.scale}
+                    dash={[4, 4]}
+                    listening={false}
+                  />
+                ) : null,
+              )}
               {points(actual).map((p, i) => (
                 <Circle
                   key={i}

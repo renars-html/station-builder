@@ -25,7 +25,7 @@ The startup template is one 50 m straight track with a full-length attached plat
 - **Path (P):** left-click adds a standard point. Press **E** at the cursor to add a control point after the first standard point. Zero controls between standard points makes a line; one makes a quadratic Bézier; two makes a cubic Bézier. A third control is ignored until another standard point is placed. **Right-click** removes the last placed point. **Enter** finishes a path with at least two standard points; if controls are pending, place the next standard point or remove the controls first. New paths are placeholder lines; select one and use **Properties → Path type** to assign Track or Platform edge.
 - Undo/redo includes every point addition, right-click removal, cancellation, and finishing. Undoing a finished path reopens its draft; redoing finishes it again. Making a new edit after undo clears redo.
 
-- **Area (A):** choose Platform, Grass, Road, or Other; click at least three vertices. Enter or click the first vertex to close the polygon.
+- **Area (A):** choose a fill from the dropdown; use left-click standard points and E control points as with paths. At least three distinct standard points are required. Enter or click the first point closes the area, using any pending controls for the closing curve.
 - **Escape:** cancel drawing or deselect. Changing tools cancels the unfinished drawing.
 - **Delete / Backspace:** delete selection.
 - **Ctrl/Command+Z:** undo; **Ctrl/Command+Shift+Z** or **Ctrl/Command+Y:** redo.
@@ -37,7 +37,7 @@ Each tool also has a brief in-app guide. Coordinates and geometry use meters; sc
 
 ## Architecture
 
-- `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/quadratic/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Polygon surfaces are independent objects; edges are separate path objects. IDs use `crypto.randomUUID()`.
+- `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/quadratic/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Area boundaries share the start/segments geometry, closed at the first anchor; edges are separate path objects. IDs use `crypto.randomUUID()`.
 - `src/model/pathAppearance.ts`: metric rail offsets and arc-length sleeper placement for straight and curved paths. Tracks use 1.435 m rail spacing, a 3.4 m brown bed, and 2.6 m concrete sleepers (0.42 m wide on 0.96 m centers, leaving 0.54 m gaps). Platform edges use white/asphalt/white/asphalt bands of 0.2/1.0/0.9/0.9 m, directed toward the nearest platform surface. Platform fills match the asphalt. Rails are 0.14 m thick. At 100% zoom each meter spans 12 screen pixels; grid lines are 10 m apart. Area labels are hidden. Only left-button dragging in Select mode moves objects or nodes; middle-button dragging always pans. Zoom supports up to 2400% for inspecting these details.
 - `src/model/pathDraft.ts`: typed standard/control draft points and pure line/quadratic/cubic construction.
 - `src/store/editor.ts`: Zustand document, selection, tools, and bounded (100-step) snapshot undo/redo. Document edits and drawing drafts share history snapshots; viewport and selection changes do not.
@@ -50,7 +50,7 @@ Future simulation modules can consume `Station` directly without importing React
 
 ## Current limits
 
-Use **Save JSON** and **Open JSON** for portable projects. Opening validates before replacing the document and is undoable. Completed geometry is also saved to browser-local recovery after 600 ms; draft points are not recovered. Storage errors are shown, and file saving remains available. Unsupported or malformed JSON is rejected with an explanation (8 MB limit, 10,000 objects and 100,000 geometry points). Selection is single-object. The editor does not enforce valid nonintersecting polygons or railway engineering constraints. There is no simulation, networking, or public deployment.
+Use **Save JSON** and **Open JSON** for portable projects. Opening validates before replacing the document and is undoable. Completed geometry is also saved to browser-local recovery after 600 ms; draft points are not recovered. Storage errors are shown, and file saving remains available. Unsupported or malformed JSON is rejected with an explanation (8 MB limit, 10,000 objects and 100,000 geometry points). Selection is single-object. The editor rejects collapsed areas but does not enforce nonintersecting boundaries or railway engineering constraints. There is no simulation, networking, or public deployment.
 
 ## Verification
 
@@ -69,3 +69,5 @@ The Properties panel displays the selected path’s length in meters directly ab
 See ROADMAP.md for prioritized acceptance criteria and progress. AGENTS.md records persistent implementation guidance.
 
 Selected paths now offer **Extend from end**, **Insert midpoint**, and **Remove segment**. Extension preserves the object ID, path kind, and attachments; finishing or cancelling remains undoable. Midpoint insertion exactly splits straight/quadratic/cubic segments. Snapped endpoints coincide geometrically; they are not yet shared network junctions.
+
+Project files now use schema version 2. Version-1 vertex polygons are migrated on Open and in local recovery; new files store closed line/quadratic/cubic boundaries. Existing version-1 path/attachment data keeps its identity. Area controls and anchors are editable after finishing, with closure preserved automatically. **Insert midpoint** splits an area boundary curve without changing its shape.

@@ -1,7 +1,13 @@
+import { areaFromDraft, areaSize } from "../model/areaGeometry";
 import { pathDraft } from "../model/pathEditing";
 import { pathLength } from "../model/pathMeasurements";
 import { create } from "zustand";
-import { example, type Station, type StationObject } from "../model/station";
+import {
+  example,
+  type Station,
+  type AreaKind,
+  type StationObject,
+} from "../model/station";
 import {
   draftGeometry,
   canAddControl,
@@ -26,6 +32,7 @@ interface Editor extends Snapshot {
   addPoint: (point: DraftPoint) => void;
   removeLastPoint: () => void;
   finishPath: () => void;
+  finishArea: (kind: AreaKind) => void;
   extendPath: (id: string) => void;
   select: (id: string | null) => void;
   setTool: (tool: Tool) => void;
@@ -59,15 +66,26 @@ export const useEditor = create<Editor>((set, get) => ({
       station: structuredClone(station),
       draft: [],
       selected: null,
+      editingObjectId: null,
+      error: null,
       tool: "select",
     })),
-  commit: (objects, finishDraft = false) =>
+  commit: (objects, finishDraft = false) => {
+    if (
+      objects.some((o) =>
+        o.type === "area" ? areaSize(o) < 1e-6 : pathLength(o) < 1e-6,
+      )
+    ) {
+      set({ error: "Edit rejected: an area must enclose a nonzero surface." });
+      return;
+    }
     set((s) => ({
       ...history(s),
       error: null,
-      station: { version: 1, objects },
+      station: { version: 2, objects },
       ...(finishDraft ? { draft: [], editingObjectId: null } : {}),
-    })),
+    }));
+  },
   setDraft: (draft) =>
     set((s) =>
       s.draft.length === 0 && draft.length === 0
@@ -81,11 +99,7 @@ export const useEditor = create<Editor>((set, get) => ({
   addPoint: (point) => {
     const s = get();
     if (s.tool !== "path" && s.tool !== "area") return;
-    if (
-      point.role === "control" &&
-      (s.tool !== "path" || !canAddControl(s.draft))
-    )
-      return;
+    if (point.role === "control" && !canAddControl(s.draft)) return;
     set({ error: null });
     s.setDraft([...s.draft, point]);
   },
@@ -104,6 +118,27 @@ export const useEditor = create<Editor>((set, get) => ({
       editingObjectId: id,
       selected: id,
     });
+  },
+  finishArea: (kind) => {
+    const s = get();
+    if (s.tool !== "area") return;
+    const geometry = areaFromDraft(s.draft);
+    if (!geometry) {
+      set({
+        error:
+          "An area needs three distinct standard points and a nonzero enclosed area.",
+      });
+      return;
+    }
+    const object: StationObject = {
+      id: crypto.randomUUID(),
+      name: kind[0].toUpperCase() + kind.slice(1) + " area",
+      type: "area",
+      kind,
+      ...geometry,
+    };
+    s.commit([...s.station.objects, object], true);
+    set({ selected: object.id });
   },
   finishPath: () => {
     const s = get();

@@ -18,7 +18,9 @@ export const edgeBands = [
   { width: 0.9, color: "#777b78" },
 ];
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
-export function flattenPath(path: PathObject): Point[] {
+export function flattenPath(
+  path: Pick<PathObject, "start" | "segments">,
+): Point[] {
   const result: Point[] = [path.start];
   let start = path.start;
   for (const s of path.segments) {

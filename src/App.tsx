@@ -23,7 +23,6 @@ import {
   Layers,
   Trash2,
   TrainFront,
-  Check,
   HelpCircle,
   X,
   PanelLeftClose,
@@ -65,7 +64,7 @@ const tools = [
     label: "Area",
     key: "A",
     icon: Hexagon,
-    help: "Click to place polygon vertices. Click the first vertex or press Enter to close the area.",
+    help: "Left-click standard points; E adds up to two curve controls. Right-click removes the last point. Enter or click the first point closes the area, including a curved closing edge.",
   },
 ] as const;
 export default function App() {
@@ -216,24 +215,19 @@ export default function App() {
           {tool === "area" && (
             <div className="tool-options">
               <div className="section-heading">AREA TYPE</div>
-              <div className="area-options">
-                {(["platform", "grass", "road", "other"] as AreaKind[]).map(
-                  (k) => (
-                    <button
-                      className={kind === k ? "chosen" : ""}
-                      onClick={() => {
-                        setKind(k);
-                        setDraft([]);
-                      }}
-                      key={k}
-                    >
-                      <i style={{ background: colors[k] }} />
+              <label>
+                Fill
+                <select
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as AreaKind)}
+                >
+                  {Object.keys(colors).map((k) => (
+                    <option key={k} value={k}>
                       {k}
-                      <span>{kind === k && <Check size={13} />}</span>
-                    </button>
-                  ),
-                )}
-              </div>
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
           <div className="layers-title section-heading">
@@ -460,11 +454,11 @@ export default function App() {
                 </div>
                 <div>
                   <span>
-                    {active.type === "area" ? "Vertices" : "Segments"}
+                    {active.type === "area" ? "Boundary segments" : "Segments"}
                   </span>
                   <b>
                     {active.type === "area"
-                      ? active.vertices.length
+                      ? active.segments.length
                       : active.segments.length}
                   </b>
                 </div>
@@ -492,7 +486,7 @@ export default function App() {
                   </select>
                 </label>
               )}
-              {active.type === "path" && (
+              {(active.type === "path" || active.type === "area") && (
                 <PathEditing key={active.id} path={active} />
               )}
               {active.type === "path" && active.kind === "track" && (

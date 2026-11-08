@@ -15,7 +15,7 @@ const add = (...draft: DraftPoint[]) =>
   draft.forEach((p) => editor().addPoint(p));
 beforeEach(() =>
   useEditor.setState({
-    station: { version: 1, objects: [] },
+    station: { version: 2, objects: [] },
     tool: "path",
     draft: [],
     past: [],

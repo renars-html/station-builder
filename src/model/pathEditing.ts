@@ -1,10 +1,18 @@
-import { type PathObject, type Point, type Segment } from "./station";
+import {
+  type PathObject,
+  type AreaObject,
+  type Point,
+  type Segment,
+} from "./station";
 import type { DraftPoint } from "./pathDraft";
 const mix = (a: Point, b: Point, t: number): Point => ({
   x: a.x + (b.x - a.x) * t,
   y: a.y + (b.y - a.y) * t,
 });
-export function splitSegment(path: PathObject, index: number): PathObject {
+export function splitSegment<T extends PathObject | AreaObject>(
+  path: T,
+  index: number,
+): T {
   const s = path.segments[index];
   if (!s) return path;
   const a = index ? path.segments[index - 1].end : path.start;
