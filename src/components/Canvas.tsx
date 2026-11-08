@@ -1,17 +1,17 @@
+import { transformSelection, boxSelection } from "../model/selection";
 import { renderPlan, edgeSideFor } from "../model/renderPlan";
 import ObjectHitShape from "./ObjectHitShape";
 import { resolveSnap, type SnapResult } from "../model/snapping";
 import EdgeRangeHandles from "./EdgeRangeHandles";
 import type { EdgeEditing } from "./TrackPlatformProperties";
 import { useEffect, useRef, useState } from "react";
-import { Stage, Layer, Line, Path, Group, Circle } from "react-konva";
+import { Stage, Layer, Line, Path, Group, Circle, Rect } from "react-konva";
 import Konva from "konva";
 import {
   colors,
   pathData,
   points,
   setPoint,
-  translate,
   type AreaKind,
   type Point,
   type StationObject,
@@ -62,9 +62,22 @@ export default function Canvas({
     null,
   );
   const [space, setSpace] = useState(false);
+  const [movePreview, setMovePreview] = useState<Record<string, StationObject>>(
+    {},
+  );
+  const [box, setBox] = useState<{ start: Point; end: Point } | null>(null);
+  const boxStart = useRef<Point | null>(null);
+  const drag = useRef<{
+    station: typeof station;
+    ids: string[];
+    node: Konva.Node;
+  } | null>(null);
+
   const {
     station,
     selected,
+    selection,
+    selectMany,
     select,
     tool,
     commit,
@@ -118,11 +131,13 @@ export default function Canvas({
   }, [fitRequest]);
   useEffect(() => {
     setPreview(null);
+    setMovePreview({});
   }, [station, selected, tool]);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (
         e.code === "Space" &&
+        !(e.target instanceof HTMLButtonElement) &&
         !(e.target instanceof HTMLInputElement) &&
         !(e.target instanceof HTMLSelectElement) &&
         !(e.target instanceof HTMLTextAreaElement) &&
@@ -147,6 +162,30 @@ export default function Canvas({
     };
   }, []);
 
+  useEffect(() => {
+    const cancel = (e: KeyboardEvent | FocusEvent) => {
+      if (e.type === "keydown" && (e as KeyboardEvent).key !== "Escape") return;
+      const node = drag.current?.node;
+      drag.current = null;
+      setPreview(null);
+      setMovePreview({});
+      setBox(null);
+      boxStart.current = null;
+      if (node?.isDragging()) node.stopDrag();
+    };
+    window.addEventListener("keydown", cancel);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("keydown", cancel);
+      window.removeEventListener("blur", cancel);
+    };
+  }, []);
+  const rawWorld = () => {
+    const p = stage.current?.getPointerPosition();
+    return p
+      ? { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale }
+      : null;
+  };
   const world = () => {
     const p = stage.current?.getPointerPosition();
     if (!p) return null;
@@ -194,11 +233,15 @@ export default function Canvas({
   };
   finishRef.current = finish;
   const active = station.objects.find((o) => o.id === selected);
-  const actual = preview ?? active;
+  const actual =
+    preview ?? (selected ? movePreview[selected] : undefined) ?? active;
   const editing =
     tool === "select" &&
     actual?.type === "path" &&
     actual.kind === "track" &&
+    !actual.locked &&
+    !actual.hidden &&
+    selection.length <= 1 &&
     editingEdge?.pathId === actual.id &&
     actual.platformEdges?.some((e) => e.id === editingEdge.edgeId)
       ? editingEdge
@@ -207,19 +250,47 @@ export default function Canvas({
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (tool === "select" && !space && e.evt.button === 0) {
         e.cancelBubble = true;
-        select(o.id);
+        select(o.id, e.evt.shiftKey);
       }
     },
-    draggable: tool === "select" && !space && !(editing && o.id === selected),
-    onDragStart: () => select(o.id),
-    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) =>
-      setPreview(translate(o, e.target.x(), e.target.y())),
+    draggable:
+      tool === "select" &&
+      !space &&
+      !o.locked &&
+      !o.hidden &&
+      !(editing && o.id === selected),
+    onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
+      const s = useEditor.getState();
+      if (!s.selection.includes(o.id)) s.select(o.id, e.evt.shiftKey);
+      drag.current = {
+        station: s.station,
+        ids: useEditor.getState().selection,
+        node: e.target,
+      };
+    },
+    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
+      const base = drag.current;
+      if (!base || base.station !== useEditor.getState().station) return;
+      const moved = transformSelection(base.station.objects, base.ids, {
+        x: e.target.x(),
+        y: e.target.y(),
+      });
+      setMovePreview(
+        Object.fromEntries(
+          moved.filter((o) => base.ids.includes(o.id)).map((o) => [o.id, o]),
+        ),
+      );
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      const dx = e.target.x(),
+      const base = drag.current,
+        dx = e.target.x(),
         dy = e.target.y();
+      drag.current = null;
       e.target.position({ x: 0, y: 0 });
+      setMovePreview({});
+      if (!base || base.station !== useEditor.getState().station) return;
       commit(
-        station.objects.map((a) => (a.id === o.id ? translate(o, dx, dy) : a)),
+        transformSelection(base.station.objects, base.ids, { x: dx, y: dy }),
       );
     },
   });
@@ -301,7 +372,14 @@ export default function Canvas({
           const p = world();
           if (!p) return;
           if (tool === "select") {
-            if (e.target === stage.current) select(null);
+            if (e.target === stage.current) {
+              if (!e.evt.shiftKey) select(null);
+              const start = rawWorld();
+              if (start) {
+                boxStart.current = start;
+                setBox({ start, end: start });
+              }
+            }
           } else {
             if (
               tool === "area" &&
@@ -315,6 +393,10 @@ export default function Canvas({
           }
         }}
         onMouseMove={() => {
+          if (boxStart.current) {
+            const end = rawWorld();
+            if (end) setBox({ start: boxStart.current, end });
+          }
           const p = world();
           if (p) {
             setHover(p);
@@ -330,26 +412,45 @@ export default function Canvas({
               });
           }
         }}
-        onMouseUp={() => {
+        onMouseUp={(e) => {
+          if (boxStart.current && e.evt.button === 0) {
+            const end = rawWorld(),
+              start = boxStart.current;
+            if (
+              end &&
+              Math.hypot(end.x - start.x, end.y - start.y) > 3 / view.scale
+            ) {
+              const ids = boxSelection(station.objects, start, end);
+              selectMany(
+                e.evt.shiftKey ? [...new Set([...selection, ...ids])] : ids,
+              );
+            }
+            boxStart.current = null;
+            setBox(null);
+          }
           pan.current = null;
         }}
         onMouseLeave={() => {
           pan.current = null;
           setHover(null);
           setSnapTarget(null);
+          boxStart.current = null;
+          setBox(null);
         }}
       >
         <Layer listening={false}>{lines}</Layer>
         <Layer>
           {renderPlan(station.objects).map(({ object: original, material }) => {
-            const o = preview?.id === original.id ? preview : original;
+            const o =
+              movePreview[original.id] ??
+              (preview?.id === original.id ? preview : original);
             return (
               <Group key={original.id + material} listening={false}>
                 {o.type === "area" ? (
                   <Path
                     data={pathData(o) + " Z"}
                     fill={colors[o.kind]}
-                    stroke={o.id === selected ? "#277d6c" : "#a7afa3"}
+                    stroke={selection.includes(o.id) ? "#277d6c" : "#a7afa3"}
                     strokeWidth={(o.id === selected ? 2 : 1) / view.scale}
                   />
                 ) : (
@@ -357,7 +458,7 @@ export default function Canvas({
                     material={material}
                     hitWidth={20 / view.scale}
                     path={o}
-                    selected={o.id === selected}
+                    selected={selection.includes(o.id)}
                     edgeSide={edgeSideFor(o, station.objects)}
                   />
                 )}
@@ -441,83 +542,121 @@ export default function Canvas({
               onPreview={setPreview}
             />
           )}
-          {tool === "select" && actual && !editing && (
-            <Group>
-              {actual.segments.map((s, i) =>
-                s.type !== "line" ? (
-                  <Line
+          {tool === "select" &&
+            actual &&
+            !actual.locked &&
+            !actual.hidden &&
+            selection.length <= 1 &&
+            !editing && (
+              <Group>
+                {actual.segments.map((s, i) =>
+                  s.type !== "line" ? (
+                    <Line
+                      key={i}
+                      points={[
+                        (i === 0 ? actual.start : actual.segments[i - 1].end).x,
+                        (i === 0 ? actual.start : actual.segments[i - 1].end).y,
+                        ...(s.type === "quadratic"
+                          ? [s.control.x, s.control.y]
+                          : [
+                              s.control1.x,
+                              s.control1.y,
+                              s.control2.x,
+                              s.control2.y,
+                            ]),
+                        s.end.x,
+                        s.end.y,
+                      ]}
+                      stroke="#469b88"
+                      strokeWidth={1 / view.scale}
+                      dash={[4, 4]}
+                      listening={false}
+                    />
+                  ) : null,
+                )}
+                {points(actual).map((p, i) => (
+                  <Circle
                     key={i}
-                    points={[
-                      (i === 0 ? actual.start : actual.segments[i - 1].end).x,
-                      (i === 0 ? actual.start : actual.segments[i - 1].end).y,
-                      ...(s.type === "quadratic"
-                        ? [s.control.x, s.control.y]
-                        : [
-                            s.control1.x,
-                            s.control1.y,
-                            s.control2.x,
-                            s.control2.y,
-                          ]),
-                      s.end.x,
-                      s.end.y,
-                    ]}
-                    stroke="#469b88"
-                    strokeWidth={1 / view.scale}
-                    dash={[4, 4]}
-                    listening={false}
-                  />
-                ) : null,
-              )}
-              {points(actual).map((p, i) => (
-                <Circle
-                  key={i}
-                  {...p}
-                  radius={4.5 / view.scale}
-                  fill="white"
-                  stroke="#277d6c"
-                  strokeWidth={1.5 / view.scale}
-                  draggable={!space}
-                  onMouseDown={(e) => {
-                    if (e.evt.button === 0 && !space) e.cancelBubble = true;
-                  }}
-                  onDragMove={(e) => {
-                    let p = { x: e.target.x(), y: e.target.y() };
-                    if (snap) {
-                      const target = resolveSnap(
-                        p,
-                        station.objects,
-                        view.scale,
-                        actual.id,
-                        i,
-                      );
-                      p = target.point;
-                      setSnapTarget(target);
-                      e.target.position(p);
-                    }
-                    setPreview(setPoint(actual, i, p));
-                  }}
-                  onDragEnd={(e) => {
-                    const raw = { x: e.target.x(), y: e.target.y() };
-                    const p = snap
-                      ? resolveSnap(
-                          raw,
+                    {...p}
+                    radius={4.5 / view.scale}
+                    fill="white"
+                    stroke="#277d6c"
+                    strokeWidth={1.5 / view.scale}
+                    draggable={!space}
+                    onMouseDown={(e) => {
+                      if (e.evt.button === 0 && !space) e.cancelBubble = true;
+                    }}
+                    onDragStart={(e) => {
+                      drag.current = {
+                        station: useEditor.getState().station,
+                        ids: [actual.id],
+                        node: e.target,
+                      };
+                    }}
+                    onDragMove={(e) => {
+                      if (
+                        !drag.current ||
+                        drag.current.station !== useEditor.getState().station
+                      )
+                        return;
+                      let p = { x: e.target.x(), y: e.target.y() };
+                      if (snap) {
+                        const target = resolveSnap(
+                          p,
                           station.objects,
                           view.scale,
                           actual.id,
                           i,
-                        ).point
-                      : raw;
-                    setSnapTarget(null);
-                    commit(
-                      station.objects.map((o) =>
-                        o.id === actual.id ? setPoint(actual, i, p) : o,
-                      ),
-                    );
-                    setPreview(null);
-                  }}
-                />
-              ))}
-            </Group>
+                        );
+                        p = target.point;
+                        setSnapTarget(target);
+                        e.target.position(p);
+                      }
+                      setPreview(setPoint(actual, i, p));
+                    }}
+                    onDragEnd={(e) => {
+                      const base = drag.current;
+                      drag.current = null;
+                      if (
+                        !base ||
+                        base.station !== useEditor.getState().station
+                      ) {
+                        setPreview(null);
+                        return;
+                      }
+                      const raw = { x: e.target.x(), y: e.target.y() };
+                      const p = snap
+                        ? resolveSnap(
+                            raw,
+                            station.objects,
+                            view.scale,
+                            actual.id,
+                            i,
+                          ).point
+                        : raw;
+                      setSnapTarget(null);
+                      commit(
+                        station.objects.map((o) =>
+                          o.id === actual.id ? setPoint(actual, i, p) : o,
+                        ),
+                      );
+                      setPreview(null);
+                    }}
+                  />
+                ))}
+              </Group>
+            )}
+          {box && (
+            <Rect
+              x={Math.min(box.start.x, box.end.x)}
+              y={Math.min(box.start.y, box.end.y)}
+              width={Math.abs(box.end.x - box.start.x)}
+              height={Math.abs(box.end.y - box.start.y)}
+              stroke="#277d6c"
+              fill="#277d6c22"
+              strokeWidth={1 / view.scale}
+              listening={false}
+            />
           )}
           {snap && snapTarget && (
             <Circle

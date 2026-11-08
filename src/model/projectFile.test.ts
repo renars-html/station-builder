@@ -44,6 +44,11 @@ describe("project files", () => {
       "large",
     );
   });
+  it("enforces the byte limit for multibyte project text", () => {
+    expect(() =>
+      parseProject('"' + "中".repeat(Math.ceil(MAX_PROJECT_BYTES / 3)) + '"'),
+    ).toThrow("large");
+  });
   it("loads as one undoable transaction and preserves state on failed parse", () => {
     const s = useEditor.getState();
     s.loadProject(example, true);

@@ -1,3 +1,4 @@
+import CommittedInput from "./components/CommittedInput";
 import { stackingOrder } from "./model/renderPlan";
 import PathEditing from "./components/PathEditing";
 import ProjectFiles from "./components/ProjectFiles";
@@ -76,6 +77,9 @@ export default function App() {
     tool,
     setTool,
     selected,
+    selection,
+    nudge,
+    selectMany,
     select,
     commit,
     undo,
@@ -95,13 +99,28 @@ export default function App() {
     [fitRequest, setFitRequest] = useState(0),
     [editingEdge, setEditingEdge] = useState<EdgeEditing | null>(null);
   const finishRef = useRef<(() => void) | null>(null);
-  const active = station.objects.find((o) => o.id === selected);
+  const active =
+    selection.length > 1
+      ? undefined
+      : station.objects.find((o) => o.id === selected);
   const current = tools.find((t) => t.id === tool)!;
   function changeTool(t: Tool) {
     setTool(t);
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (help) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setHelp(false);
+        }
+        return;
+      }
+      if (
+        e.target instanceof HTMLButtonElement &&
+        (e.key === "Enter" || e.code === "Space")
+      )
+        return;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLSelectElement ||
@@ -121,7 +140,27 @@ export default function App() {
         redo();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && k === "a") {
+        e.preventDefault();
+        setTool("select");
+        selectMany(
+          useEditor
+            .getState()
+            .station.objects.filter((o) => !o.hidden)
+            .map((o) => o.id),
+        );
+        return;
+      }
       if (e.ctrlKey || e.metaKey) return;
+      if (["arrowleft", "arrowright", "arrowup", "arrowdown"].includes(k)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        nudge(
+          k === "arrowleft" ? -step : k === "arrowright" ? step : 0,
+          k === "arrowup" ? -step : k === "arrowdown" ? step : 0,
+        );
+        return;
+      }
       if (k === "escape") {
         setEditingEdge(null);
         setDraft([]);
@@ -142,7 +181,7 @@ export default function App() {
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [redo, undo, remove, setTool, select, setDraft]);
+  }, [redo, undo, remove, setTool, select, setDraft, nudge, selectMany, help]);
   const counts = {
     track: station.objects.filter(
       (o) => o.type === "path" && o.kind === "track",
@@ -243,11 +282,11 @@ export default function App() {
               .map((o) => (
                 <button
                   className={
-                    "object-row " + (selected === o.id ? "selected" : "")
+                    "object-row " + (selection.includes(o.id) ? "selected" : "")
                   }
                   key={o.id}
-                  onClick={() => {
-                    select(o.id);
+                  onClick={(e) => {
+                    select(o.id, e.shiftKey);
                     changeTool("select");
                   }}
                 >
@@ -259,7 +298,10 @@ export default function App() {
                     <Spline size={14} />
                   )}
                   <span>{o.name}</span>
-                  <small>Z{o.z ?? 0}</small>
+                  <small>
+                    {o.hidden ? "Hidden " : ""}
+                    {o.locked ? "Locked " : ""}Z{o.z ?? 0}
+                  </small>
                 </button>
               ))}
           </div>
@@ -429,7 +471,12 @@ export default function App() {
         </main>
         <aside className="inspector">
           <div className="inspector-title">
-            Properties <span>{active ? "1 SELECTED" : "NO SELECTION"}</span>
+            Properties{" "}
+            <span>
+              {selection.length
+                ? `${selection.length} SELECTED`
+                : "NO SELECTION"}
+            </span>
           </div>
           {active ? (
             <div className="property-body">
@@ -440,12 +487,12 @@ export default function App() {
               </div>
               <label>
                 Object name
-                <input
+                <CommittedInput
                   value={active.name}
-                  onChange={(e) =>
+                  onCommit={(value) =>
                     commit(
                       station.objects.map((o) =>
-                        o.id === active.id ? { ...o, name: e.target.value } : o,
+                        o.id === active.id ? { ...o, name: value } : o,
                       ),
                     )
                   }
@@ -453,23 +500,55 @@ export default function App() {
               </label>
               <label>
                 Z level
-                <input
-                  type="number"
-                  min="-1000"
-                  max="1000"
-                  step="1"
+                <CommittedInput
+                  numeric
+                  integer
+                  min={-1000}
+                  max={1000}
                   value={active.z ?? 0}
-                  onChange={(e) => {
-                    const z = e.target.valueAsNumber;
-                    if (Number.isInteger(z) && z >= -1000 && z <= 1000)
-                      commit(
-                        station.objects.map((o) =>
-                          o.id === active.id ? { ...o, z } : o,
-                        ),
-                      );
-                  }}
+                  onCommit={(value) =>
+                    commit(
+                      station.objects.map((o) =>
+                        o.id === active.id ? { ...o, z: Number(value) } : o,
+                      ),
+                    )
+                  }
                 />
               </label>
+              <div className="object-flags">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={active.locked ?? false}
+                    onChange={(e) =>
+                      commit(
+                        station.objects.map((o) =>
+                          o.id === active.id
+                            ? { ...o, locked: e.target.checked }
+                            : o,
+                        ),
+                      )
+                    }
+                  />
+                  Locked
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={active.hidden ?? false}
+                    onChange={(e) =>
+                      commit(
+                        station.objects.map((o) =>
+                          o.id === active.id
+                            ? { ...o, hidden: e.target.checked }
+                            : o,
+                        ),
+                      )
+                    }
+                  />
+                  Hidden
+                </label>
+              </div>
               <p className="muted">
                 Higher levels render above lower levels. Use negative levels for
                 underpasses and positive levels for bridges.
@@ -513,9 +592,11 @@ export default function App() {
                   </select>
                 </label>
               )}
-              {(active.type === "path" || active.type === "area") && (
-                <PathEditing key={active.id} path={active} />
-              )}
+              {!active.locked &&
+                !active.hidden &&
+                (active.type === "path" || active.type === "area") && (
+                  <PathEditing key={active.id} path={active} />
+                )}
               {active.type === "path" && active.kind === "track" && (
                 <TrackPlatformProperties
                   track={active}
@@ -548,7 +629,11 @@ export default function App() {
                 Drag the object to move it. Drag the outlined nodes to reshape
                 it.
               </p>
-              <button className="delete-button" onClick={remove}>
+              <button
+                className="delete-button"
+                disabled={active.locked}
+                onClick={remove}
+              >
                 <Trash2 size={14} />
                 Delete object <kbd>⌫</kbd>
               </button>
@@ -556,9 +641,9 @@ export default function App() {
           ) : (
             <div className="empty-selection">
               <p>
-                Select an object on the canvas
-                <br />
-                to view and edit its properties.
+                {selection.length > 1
+                  ? `${selection.length} objects selected. Drag a selected object to move the group; Delete removes unlocked objects.`
+                  : "Select an object on the canvas to view and edit its properties."}
               </p>
             </div>
           )}

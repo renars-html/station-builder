@@ -8,10 +8,23 @@ import {
 } from "../model/projectFile";
 const KEY = "yard.project.recovery.v1";
 export default function ProjectFiles({ onLoaded }: { onLoaded: () => void }) {
-  const { station, loadProject } = useEditor();
+  const { station, loadProject, draft } = useEditor();
+  const [savedDocument, setSavedDocument] = useState<string | null>(null);
+  const dirty = JSON.stringify(station) !== savedDocument;
+  useEffect(() => {
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirty || draft.length) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty, draft.length]);
   const file = useRef<HTMLInputElement>(null),
     initialized = useRef(false),
-    blocked = useRef(false);
+    blocked = useRef(false),
+    openRequest = useRef(0);
   const [message, setMessage] = useState(""),
     [error, setError] = useState(false);
   const report = (text: string, isError = false) => {
@@ -64,6 +77,7 @@ export default function ProjectFiles({ onLoaded }: { onLoaded: () => void }) {
       a.href = url;
       a.download = "station-layout.json";
       a.click();
+      setSavedDocument(JSON.stringify(station));
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       report("Project saved as JSON.");
     } catch (e) {
@@ -85,16 +99,21 @@ export default function ProjectFiles({ onLoaded }: { onLoaded: () => void }) {
           const chosen = e.target.files?.[0];
           e.target.value = "";
           if (!chosen) return;
+          const request = ++openRequest.current;
           try {
             if (chosen.size > MAX_PROJECT_BYTES)
               throw new Error("Project is too large (maximum 8 MB).");
             const next = parseProject(await chosen.text());
+            if (request !== openRequest.current) return;
+            blocked.current = false;
             loadProject(next);
+            setSavedDocument(JSON.stringify(next));
             onLoaded();
             report(
               `Opened ${chosen.name}. Undo restores the previous project.`,
             );
           } catch (err) {
+            if (request !== openRequest.current) return;
             report(
               `Open failed: ${err instanceof Error ? err.message : "file could not be read"}`,
               true,
@@ -102,6 +121,9 @@ export default function ProjectFiles({ onLoaded }: { onLoaded: () => void }) {
           }
         }}
       />
+      <span className={"save-status " + (dirty ? "dirty" : "")}>
+        {dirty ? "Unsaved JSON" : "JSON saved"}
+      </span>
       <button className="file-open" onClick={() => file.current?.click()}>
         <FolderOpen size={15} />
         Open JSON

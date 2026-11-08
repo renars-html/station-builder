@@ -1,8 +1,8 @@
 # Yard — Station designer
 
-A desktop 2D railway station layout editor built with React, strict TypeScript, Vite, Konva / react-konva, Zustand, and Tailwind CSS. No simulation or server is included.
+Desktop 2D railway layout editor built with React, strict TypeScript, Vite, react-konva, Zustand and Tailwind. No simulation, server, or public deployment.
 
-## Run
+## Run and verify
 
 Requires Node.js 20.19+ (Node 22 recommended).
 
@@ -10,66 +10,54 @@ Requires Node.js 20.19+ (Node 22 recommended).
 npm install
 npm run dev
 npm run typecheck
-npm run build
 npm test
+npm run build
 ```
 
-Vite prints the local development URL. `dist/` contains the production build. Nothing is deployed automatically.
+Vite prints the local URL. `dist/` contains the production build. The template is a single 50 m straight track with a full-length attached platform edge.
 
-## Use
+## Drawing and editing
 
-The startup template is one 50 m straight track with a full-length attached platform edge. Select and delete objects to replace it with your own design.
+- **P — Path:** left-click standard points; **E** at the cursor places up to two control points between standards. Zero controls makes a line, one a quadratic Bézier, two a cubic. Right-click removes the last point; Enter finishes after a standard point. Assign Placeholder, Track, or Platform edge in Properties.
+- **A — Area:** choose a fill from the dropdown. Use the same standard/control points as paths. At least three distinct standard points and a nonzero enclosed surface are required. Enter or click the first point closes the boundary, using pending controls for a curved closing edge.
+- **V — Select:** click objects, Shift-click to add/remove from selection, or drag a box on empty canvas to select objects whose anchors and controls are contained. Shift-box adds to selection. Ctrl/Command+A selects visible objects. Drag a selected object to move the unlocked selected group; Delete/Backspace deletes unlocked selected objects. Arrow keys nudge by 1 m, Shift+arrows by 10 m. Locked objects remain selectable in the object list but cannot be moved, reshaped, extended or deleted. Hidden objects are omitted from canvas/snap/box targets; select them in Objects to unhide them.
+- Drag outlined nodes to edit a finished path or area. Closed area first/final anchors stay joined. **Insert midpoint** splits the chosen line or curve exactly without changing shape. Paths also offer **Remove segment** and **Extend from end**. Extension preserves ID, path type, Z level and attachments.
+- **H — Pan**, hold Space and drag, or middle-button drag. Middle button never moves objects or nodes. Wheel zooms around the cursor; 100% = 12 pixels/m. Grid lines are 10 m apart. Bottom-right controls zoom or fit the project.
+- **Snap:** prioritize object anchors and boundaries within 10 screen pixels, then the 10 m grid. The marker distinguishes object targets from grid. Coincident endpoints are geometric joins; they are not yet persistent graph junctions.
+- **G** toggles grid. **Escape** cancels drawing/dragging or deselects. **Ctrl/Command+Z** undoes; **Ctrl/Command+Shift+Z** or **Ctrl/Command+Y** redoes. Draft additions/removals, finishing, extension, grouped movement/deletion and property changes are undoable. Undoing finishing reopens the draft. New edits clear redo; unchanged edits do not.
+- Text/numeric property fields commit on blur/Enter, making one history step. Escape restores the field. Form inputs retain native typing shortcuts.
 
-- **Select (V):** click an object or its entry in Objects. Drag it to move. Drag outlined nodes to change endpoints, Bézier controls, or polygon vertices. The inspector edits its name and surface type.
-- **Pan (H):** drag the view. Hold Space and drag or use the middle mouse button with any tool.
-- **Path (P):** left-click adds a standard point. Press **E** at the cursor to add a control point after the first standard point. Zero controls between standard points makes a line; one makes a quadratic Bézier; two makes a cubic Bézier. A third control is ignored until another standard point is placed. **Right-click** removes the last placed point. **Enter** finishes a path with at least two standard points; if controls are pending, place the next standard point or remove the controls first. New paths are placeholder lines; select one and use **Properties → Path type** to assign Track or Platform edge.
-- Undo/redo includes every point addition, right-click removal, cancellation, and finishing. Undoing a finished path reopens its draft; redoing finishes it again. Making a new edit after undo clears redo.
+## Platform edges and levels
 
-- **Area (A):** choose a fill from the dropdown; use left-click standard points and E control points as with paths. At least three distinct standard points are required. Enter or click the first point closes the area, using any pending controls for the closing curve.
-- **Escape:** cancel drawing or deselect. Changing tools cancels the unfinished drawing.
-- **Delete / Backspace:** delete selection.
-- **Ctrl/Command+Z:** undo; **Ctrl/Command+Shift+Z** or **Ctrl/Command+Y:** redo.
-- **G:** toggle grid. Snap prioritizes nearby object anchors and boundaries within 10 screen pixels, then falls back to the 10 m grid. The snap marker distinguishes object targets from grid targets.
-- Mouse wheel zooms around the cursor. Bottom-right controls zoom or fit all objects.
-- **Export layout:** download the station as renderer-independent JSON.
+Select a Track and choose **Platform edge → Add platform edge**. The UI intentionally exposes one attachment; the model retains a collection for future expansion. The default edge covers the full track with zero gap from the outside of its trackbed. **Flip side** changes left/right relative to the start-to-end direction. Set distance in meters. **Edit start/end** exposes green start/orange end handles constrained to the track centerline; handles cannot cross. **Done editing** returns to geometry editing. Edges move/reshape with their parent track.
 
-Each tool also has a brief in-app guide. Coordinates and geometry use meters; screen transforms never modify stored coordinates.
+Lengths appear above Station overview for all path types and attached edges. Attached-edge lengths measure the offset outer boundary, accounting for side, distance and range on curves. Curve lengths/projections use sampled arc lengths; enclosed area uses exact Bézier polynomial integration.
 
-## Architecture
+**Z level** is an integer drawing elevation for all objects. Higher levels render wholly above lower ones; zero is ground. Within a level all trackbeds render before all sleepers, then all rails. Attached edges inherit their parent level. Render and hit-test passes share ordering. These levels do not establish engineering clearances, gradients or simulation constraints.
 
-- `src/model/station.ts`: serializable, renderer-independent station types and pure geometry helpers. Paths have an explicit start, ordered line/quadratic/cubic segments, and a separate kind (placeholder, track, or edge). The `pathKinds` registry supplies the inspector dropdown and can be extended with future kinds. Area boundaries share the start/segments geometry, closed at the first anchor; edges are separate path objects. IDs use `crypto.randomUUID()`.
-- `src/model/pathAppearance.ts`: metric rail offsets and arc-length sleeper placement for straight and curved paths. Tracks use 1.435 m rail spacing, a 3.4 m brown bed, and 2.6 m concrete sleepers (0.42 m wide on 0.96 m centers, leaving 0.54 m gaps). Platform edges use white/asphalt/white/asphalt bands of 0.2/1.0/0.9/0.9 m, directed toward the nearest platform surface. Platform fills match the asphalt. Rails are 0.14 m thick. At 100% zoom each meter spans 12 screen pixels; grid lines are 10 m apart. Area labels are hidden. Only left-button dragging in Select mode moves objects or nodes; middle-button dragging always pans. Zoom supports up to 2400% for inspecting these details.
-- `src/model/pathDraft.ts`: typed standard/control draft points and pure line/quadratic/cubic construction.
-- `src/store/editor.ts`: Zustand document, selection, tools, and bounded (100-step) snapshot undo/redo. Document edits and drawing drafts share history snapshots; viewport and selection changes do not.
-- `src/components/Canvas.tsx`: Konva rendering, screen-to-world conversion, draft tools, node handles, panning, zooming, and grid. Drag previews stay outside the document until committed.
-- `src/App.tsx`: desktop workspace, inspector, object list, shortcuts, export, and tool guides.
-- `src/styles.css`: Tailwind integration and workspace styles.
-- `src/model/station.test.ts`: geometry and document history regression checks.
+Track appearance uses 1.435 m gauge, 0.14 m rails, a 3.4 m brown bed and 2.6 m concrete sleepers, 0.42 m thick with 0.54 m gaps. Platform bands are white/asphalt/white/asphalt with widths 0.2/1/0.9/0.9 m. Platform fills match the asphalt. Area text labels are intentionally absent.
 
-Future simulation modules can consume `Station` directly without importing React or Konva. The current document deliberately describes geometry rather than connectivity, routing, or simulation agents.
+## Project files and recovery
 
-## Current limits
+**Save JSON** downloads a portable project; **Open JSON** validates before replacing the document, fits the new project, and creates one undoable history step. IDs and world coordinates are preserved. Unsupported versions, duplicate IDs, malformed/nonfinite coordinates, invalid ranges, unclosed/collapsed areas and invalid flags/levels are rejected with actionable messages. Limits: 8 MB, 10,000 objects, 100,000 geometry points.
 
-Use **Save JSON** and **Open JSON** for portable projects. Opening validates before replacing the document and is undoable. Completed geometry is also saved to browser-local recovery after 600 ms; draft points are not recovered. Storage errors are shown, and file saving remains available. Unsupported or malformed JSON is rejected with an explanation (8 MB limit, 10,000 objects and 100,000 geometry points). Selection is single-object. The editor rejects collapsed areas but does not enforce nonintersecting boundaries or railway engineering constraints. There is no simulation, networking, or public deployment.
+New files use schema v2, with shared closed line/quadratic/cubic area boundaries. Version-1 polygon files migrate on load. Completed geometry also writes to browser-local recovery after 600 ms; drafts and viewport are excluded. Storage failures are reported; corrupt recovery is preserved until a valid project is explicitly opened. Use JSON files for portable backups. The header marks changes since the last file open/download, and leaving with unexported changes or draft points requests the browser's standard warning.
 
-## Verification
+## Modules
 
-`npm run build` and `npm test` pass (geometry and drawing-history regression tests). Interactive browser QA could not be completed in the managed environment: `sites-preview` reported a browser relay readiness timeout. Manual checking of drawing, node dragging, and view controls in a local desktop browser is recommended before relying on the editor for production work.
+- `src/model/station.ts`: world-coordinate document types, geometry transforms, stable IDs and template. No React/Konva dependencies.
+- `projectFile.ts`: validation/version migration and serialization boundary.
+- `pathDraft.ts`, `pathEditing.ts`, `areaGeometry.ts`: pure construction, curve splitting, area closure/measurement.
+- `pathAppearance.ts`, `trackPlatform.ts`, `pathMeasurements.ts`: sampling, offsets, sleepers, attachment clipping/projection and lengths.
+- `snapping.ts`, `selection.ts`, `renderPlan.ts`: snapping, group transformations/box selection and deterministic drawing levels/material passes.
+- `src/store/editor.ts`: document/draft snapshots, 100-step history, loading, selection and editing actions. Viewport/selection do not create document history.
+- `src/components/`: Konva rendering and hit shapes, constrained range handles, reusable inspector fields, file controls, and path-editing properties. Drag previews stay transient until commit; stale document drags are discarded.
+- `src/App.tsx`: desktop workspace, inspector, shortcuts, object list and tool guides.
 
-## Track-attached platform edge
+See [ROADMAP.md](ROADMAP.md) for priorities, acceptance criteria, evidence and remaining work. [AGENTS.md](AGENTS.md) gives persistent contributor guidance.
 
-Select a Track path and choose **Platform edge → Add platform edge**. The attachment initially spans the entire track with zero gap from the trackbed. Use **Flip side** to switch Left/Right relative to the direction from the path start to its end, and set a nonnegative distance from the outside of the trackbed in meters. The platform bands extend outward from the track.
+## Verification and remaining limitations
 
-Choose **Edit start / end** to drag the green start and orange end handles. Handles project onto the track centerline, including curves, and cannot cross. Choose **Done editing** to return to normal geometry editing. Middle-button dragging continues to pan. Each completed handle drag, property edit, addition, or removal supports undo/redo. Attachments move and reshape with the track.
+Automated geometry/state/validation tests, explicit TypeScript checks, and production builds are run per milestone. Managed browser preview currently fails with a relay readiness timeout; visual/file-picker/drag/keyboard interaction QA is unverified, and M5 remains incomplete until browser tests can run. The build reports a bundle-size warning.
 
-`TrackPlatformEdge` stores an ID, side, distance, and normalized arc-length start/end positions (0–1). These fractions preserve relative placement when the track length changes. `PathObject.platformEdges` is a collection to allow future expansion; this version exposes exactly one attachment per track. No additional platform polygon or independently movable path is created. `src/model/trackPlatform.ts` supplies renderer-independent projection, clipping, and attachment band geometry; curve positions use the same sampled path as the renderer.
-
-The Properties panel displays the selected path’s length in meters directly above Station overview, for placeholder, track, and standalone platform-edge paths. Tracks also display attached platform-edge lengths along their offset outer boundary. Curved lengths use sampled arc lengths. Measurements update after geometry, side, distance, or range changes.
-
-See ROADMAP.md for prioritized acceptance criteria and progress. AGENTS.md records persistent implementation guidance.
-
-Selected paths now offer **Extend from end**, **Insert midpoint**, and **Remove segment**. Extension preserves the object ID, path kind, and attachments; finishing or cancelling remains undoable. Midpoint insertion exactly splits straight/quadratic/cubic segments. Snapped endpoints coincide geometrically; they are not yet shared network junctions.
-
-Project files now use schema version 2. Version-1 vertex polygons are migrated on Open and in local recovery; new files store closed line/quadratic/cubic boundaries. Existing version-1 path/attachment data keeps its identity. Area controls and anchors are editable after finishing, with closure preserved automatically. **Insert midpoint** splits an area boundary curve without changing its shape.
-
-**Z level** in Properties controls rendering elevation for every path and area. Higher integer levels render completely above lower levels; level 0 is ground. Within a level all trackbeds draw first, followed by all sleepers and then all rails, so one track’s bed cannot cover another track’s rails. Attached platform edges inherit their track’s level. The object list displays stacking order. These are drawing levels, not engineering heights or simulation constraints.
+There is no persistent junction graph, routing, simulation, polygon holes/boolean operations, or railway engineering validation. Nonzero-area self-intersecting shapes are not repaired. Large-project spatial indexing/culling, bounded adaptive sampling and performance benchmarks remain M6 work. Local recovery is browser-specific, not a substitute for saved JSON files.

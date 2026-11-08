@@ -16,6 +16,7 @@ export function resolveSnap(
   let best = tolerance,
     anchor: Point | undefined;
   for (const object of objects) {
+    if (object.hidden) continue;
     const ps = points(object);
     let n = 0;
     const controls = new Set<number>();
@@ -47,6 +48,7 @@ export function resolveSnap(
   best = tolerance;
   let boundary: Point | undefined;
   for (const object of objects) {
+    if (object.hidden) continue;
     if (object.id === excludeObjectId) continue;
     const line = flattenPath(object);
     const q = pointAlong(line, projectAlong(line, p));

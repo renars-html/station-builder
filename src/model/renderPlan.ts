@@ -17,6 +17,7 @@ const pass: Record<Material, number> = {
 export const zLevel = (object: StationObject) => object.z ?? 0;
 export function renderPlan(objects: StationObject[]): RenderItem[] {
   return objects
+    .filter((object) => !object.hidden)
     .flatMap((object, order): RenderItem[] => {
       const z = zLevel(object);
       const materials: Material[] =

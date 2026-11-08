@@ -35,7 +35,10 @@ const string = (v: unknown, label: string): string => {
   return v;
 };
 export function parseProject(text: string): Station {
-  if (text.length > MAX_PROJECT_BYTES)
+  if (
+    text.length > MAX_PROJECT_BYTES ||
+    new TextEncoder().encode(text).byteLength > MAX_PROJECT_BYTES
+  )
     throw new Error("Project is too large (maximum 8 MB).");
   let data: unknown;
   try {
@@ -102,6 +105,8 @@ export function parseProject(text: string): Station {
       const o = record(v, "Object"),
         base = {
           id: id(o.id),
+          ...(o.locked === undefined ? {} : { locked: o.locked === true }),
+          ...(o.hidden === undefined ? {} : { hidden: o.hidden === true }),
           ...(o.z === undefined
             ? {}
             : { z: number(o.z, "Z level", -1000, 1000) }),
@@ -110,6 +115,11 @@ export function parseProject(text: string): Station {
               ? o.name
               : string(o.name, "Object name"),
         };
+      if (
+        (o.locked !== undefined && typeof o.locked !== "boolean") ||
+        (o.hidden !== undefined && typeof o.hidden !== "boolean")
+      )
+        throw new Error("Locked and hidden must be boolean values.");
       if (o.z !== undefined && !Number.isInteger(o.z))
         throw new Error("Z level must be an integer.");
       if (o.type === "path") {
@@ -185,5 +195,10 @@ export function parseProject(text: string): Station {
   return { version: 2, objects };
 }
 export function serializeProject(station: Station): string {
-  return JSON.stringify(parseProject(JSON.stringify(station)), null, 2);
+  const text = JSON.stringify(parseProject(JSON.stringify(station)), null, 2);
+  if (new TextEncoder().encode(text).byteLength > MAX_PROJECT_BYTES)
+    throw new Error(
+      "Project is too large (maximum 8 MB). Reduce its size before saving.",
+    );
+  return text;
 }

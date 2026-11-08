@@ -1,3 +1,4 @@
+import { transformSelection } from "../model/selection";
 import { areaFromDraft, areaSize } from "../model/areaGeometry";
 import { pathDraft } from "../model/pathEditing";
 import { pathLength } from "../model/pathMeasurements";
@@ -26,6 +27,9 @@ interface Editor extends Snapshot {
   past: Snapshot[];
   future: Snapshot[];
   selected: string | null;
+  selection: string[];
+  selectMany: (ids: string[]) => void;
+  nudge: (dx: number, dy: number) => void;
   loadProject: (station: Station, recovery?: boolean) => void;
   commit: (objects: StationObject[], finishDraft?: boolean) => void;
   setDraft: (draft: DraftPoint[]) => void;
@@ -34,7 +38,7 @@ interface Editor extends Snapshot {
   finishPath: () => void;
   finishArea: (kind: AreaKind) => void;
   extendPath: (id: string) => void;
-  select: (id: string | null) => void;
+  select: (id: string | null, additive?: boolean) => void;
   setTool: (tool: Tool) => void;
   undo: () => void;
   redo: () => void;
@@ -60,12 +64,14 @@ export const useEditor = create<Editor>((set, get) => ({
   past: [],
   future: [],
   selected: null,
+  selection: [],
   loadProject: (station, recovery = false) =>
     set((s) => ({
       ...(recovery ? { past: [], future: [] } : history(s)),
       station: structuredClone(station),
       draft: [],
       selected: null,
+      selection: [],
       editingObjectId: null,
       error: null,
       tool: "select",
@@ -76,9 +82,17 @@ export const useEditor = create<Editor>((set, get) => ({
         o.type === "area" ? areaSize(o) < 1e-6 : pathLength(o) < 1e-6,
       )
     ) {
-      set({ error: "Edit rejected: an area must enclose a nonzero surface." });
+      set({
+        error:
+          "Edit rejected: paths need nonzero length and areas must enclose a nonzero surface.",
+      });
       return;
     }
+    if (
+      !finishDraft &&
+      JSON.stringify(objects) === JSON.stringify(get().station.objects)
+    )
+      return;
     set((s) => ({
       ...history(s),
       error: null,
@@ -110,13 +124,14 @@ export const useEditor = create<Editor>((set, get) => ({
   extendPath: (id) => {
     const s = get(),
       object = s.station.objects.find((o) => o.id === id);
-    if (object?.type !== "path") return;
+    if (object?.type !== "path" || object.locked || object.hidden) return;
     set({
       ...history(s),
       tool: "path",
       draft: pathDraft(object),
       editingObjectId: id,
       selected: id,
+      selection: [id],
     });
   },
   finishArea: (kind) => {
@@ -138,7 +153,7 @@ export const useEditor = create<Editor>((set, get) => ({
       ...geometry,
     };
     s.commit([...s.station.objects, object], true);
-    set({ selected: object.id });
+    set({ selected: object.id, selection: [object.id] });
   },
   finishPath: () => {
     const s = get();
@@ -169,9 +184,37 @@ export const useEditor = create<Editor>((set, get) => ({
         : [...s.station.objects, next],
       true,
     );
-    set({ selected: next.id });
+    set({ selected: next.id, selection: [next.id] });
   },
-  select: (selected) => set({ selected }),
+  select: (id, additive = false) =>
+    set((s) => {
+      const selection =
+        id === null
+          ? []
+          : additive
+            ? s.selection.includes(id)
+              ? s.selection.filter((v) => v !== id)
+              : [...s.selection, id]
+            : [id];
+      return { selection, selected: selection.at(-1) ?? null };
+    }),
+  selectMany: (ids) => {
+    const valid = [...new Set(ids)].filter((id) =>
+      get().station.objects.some((o) => o.id === id && !o.hidden),
+    );
+    set({ selection: valid, selected: valid.at(-1) ?? null });
+  },
+  nudge: (dx, dy) => {
+    const s = get();
+    if (s.tool !== "select") return;
+    s.commit(
+      transformSelection(
+        s.station.objects,
+        s.selection.length ? s.selection : s.selected ? [s.selected] : [],
+        { x: dx, y: dy },
+      ),
+    );
+  },
   setTool: (tool) =>
     set((s) =>
       s.tool === tool
@@ -188,6 +231,8 @@ export const useEditor = create<Editor>((set, get) => ({
             past: s.past.slice(0, -1),
             future: [snapshot(s), ...s.future],
             selected: null,
+            error: null,
+            selection: [],
           }
         : {},
     ),
@@ -199,14 +244,22 @@ export const useEditor = create<Editor>((set, get) => ({
             past: [...s.past, snapshot(s)],
             future: s.future.slice(1),
             selected: null,
+            error: null,
+            selection: [],
           }
         : {},
     ),
   remove: () => {
-    const s = get();
-    if (s.selected) {
-      s.commit(s.station.objects.filter((o) => o.id !== s.selected));
-      set({ selected: null });
-    }
+    const s = get(),
+      ids = s.selection.length ? s.selection : s.selected ? [s.selected] : [];
+    const removed = new Set(
+      s.station.objects
+        .filter((o) => ids.includes(o.id) && !o.locked)
+        .map((o) => o.id),
+    );
+    if (!removed.size) return;
+    s.commit(s.station.objects.filter((o) => !removed.has(o.id)));
+    const selection = s.selection.filter((id) => !removed.has(id));
+    set({ selection, selected: selection.at(-1) ?? null });
   },
 }));

@@ -12,6 +12,8 @@ interface Base {
   name: string;
   /** Rendering elevation; absent in older projects means ground level (0). */
   z?: number;
+  locked?: boolean;
+  hidden?: boolean;
 }
 // Add future path kinds here; geometry remains independent of its use.
 export const pathKinds = {

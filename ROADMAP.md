@@ -56,7 +56,7 @@ Acceptance:
 - Canvas hit selection follows displayed ordering; object list reflects stacking. Attached edges inherit their track level.
 - Tests assert render order and legacy default levels.
 
-## M5 — Selection, transactions and production interaction QA [planned]
+## M5 — Selection, transactions and production interaction QA [partial — interaction QA blocked]
 
 Acceptance: multi-selection/box selection, grouped translation and deletion, arrow nudging, lock/hide controls, property-edit coalescing, drag cancellation without history corruption, visible unsaved status and leave warnings, browser tests for drawing/dragging/keyboard/file flows. No browser QA claims without observing it pass.
 
@@ -75,3 +75,9 @@ M2 evidence: 40 tests pass, TypeScript and production build pass. Snap prioritiz
 M3 evidence: 46 tests pass; TypeScript and production build pass. Areas now share start/segments with paths; schema v2 writes curved areas and migrates v1 vertex polygons. Closing curve controls and first-anchor edits preserve closure. Exact polynomial area integration replaced sampled area estimates after a curve-splitting regression exposed sampling drift. Fill dropdown, control handles, midpoint insertion, shared snapping and draft history are implemented. Self-intersections with nonzero signed area are not repaired/rejected; holes and booleans remain out of scope.
 
 M4 evidence: 50 tests pass; TypeScript and production build pass. Every object supports an integer Z level (-1000..1000), defaulting to zero for old files. Render and hit plans share level/material ordering. Beds/sleepers/rails are global passes per level; attached edges inherit the track level. Transparent interaction shapes keep whole-object dragging synchronized across material passes. Numeric levels represent stacking, not physical bridge clearance or grades. Browser interaction QA remains M5 and has not been claimed.
+
+M5 implementation evidence: Shift-click, box selection, Select All, group translation/deletion, 1 m/10 m keyboard nudging, lock/hide flags, no-op history suppression, blur/Enter property transactions with Escape cancellation, file-dirty status and leave warnings are implemented. Drag transactions check document identity and discard stale previews after undo/load; Escape/blur cancel active drags. Model tests cover grouping, locks, visibility, no-op branching and selection containment. Pending: automated browser verification of property focus, constrained handles, middle-button panning, box/group movement, cancellation and file/recovery dialogs. Managed preview retry returned `relay could not open browser port 4173: timed out waiting for relay readiness`; status reports stopped. Do not mark M5 complete based on unit tests alone.
+
+M6 remains planned: no persistent shared junction references, physical elevation constraints, routing or simulation have been introduced. Large-project benchmarking, adaptive bounded sampling, caching/culling/spatial index and broad Zustand subscription cleanup remain explicit follow-up work.
+
+Final M5 core verification: 57 regression tests, explicit TypeScript check, production build and whitespace checks pass. UI-only flows remain unverified due to the managed preview relay failure; large-project performance and topology are not claimed complete.

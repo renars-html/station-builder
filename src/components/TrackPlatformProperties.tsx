@@ -1,3 +1,4 @@
+import CommittedInput from "./CommittedInput";
 import type { PathObject, TrackPlatformEdge } from "../model/station";
 import { useEditor } from "../store/editor";
 export interface EdgeEditing {
@@ -28,95 +29,93 @@ export default function TrackPlatformProperties({
   return (
     <section className="track-platform-properties">
       <h3>Platform edge</h3>
-      {!edge ? (
-        <button
-          className="edge-action"
-          onClick={() =>
-            update([
-              {
-                id: crypto.randomUUID(),
-                side: "right",
-                distance: 0,
-                start: 0,
-                end: 1,
-              },
-            ])
-          }
-        >
-          Add platform edge
-        </button>
-      ) : (
-        <>
-          <div className="property-stats">
-            <div>
-              <span>Side</span>
-              <b>{edge.side === "left" ? "Left" : "Right"}</b>
-            </div>
-          </div>
+      <fieldset disabled={track.locked || track.hidden}>
+        {!edge ? (
           <button
             className="edge-action"
             onClick={() =>
-              patch({ side: edge.side === "left" ? "right" : "left" })
+              update([
+                {
+                  id: crypto.randomUUID(),
+                  side: "right",
+                  distance: 0,
+                  start: 0,
+                  end: 1,
+                },
+              ])
             }
           >
-            Flip side
+            Add platform edge
           </button>
-          <label>
-            Distance from trackbed (m)
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={edge.distance}
-              onChange={(e) => {
-                const value = e.target.valueAsNumber;
-                if (Number.isFinite(value) && value >= 0)
-                  patch({ distance: value });
+        ) : (
+          <>
+            <div className="property-stats">
+              <div>
+                <span>Side</span>
+                <b>{edge.side === "left" ? "Left" : "Right"}</b>
+              </div>
+            </div>
+            <button
+              className="edge-action"
+              onClick={() =>
+                patch({ side: edge.side === "left" ? "right" : "left" })
+              }
+            >
+              Flip side
+            </button>
+            <label>
+              Distance from trackbed (m)
+              <CommittedInput
+                numeric
+                min={0}
+                max={1e7}
+                value={edge.distance}
+                onCommit={(value) => patch({ distance: Number(value) })}
+              />
+            </label>
+            <div className="property-stats">
+              <div>
+                <span>Start along track</span>
+                <b>{(edge.start * 100).toFixed(1)}%</b>
+              </div>
+              <div>
+                <span>End along track</span>
+                <b>{(edge.end * 100).toFixed(1)}%</b>
+              </div>
+            </div>
+            <button
+              className="edge-action"
+              onClick={() => {
+                setTool("select");
+                setEditing(
+                  isEditing ? null : { pathId: track.id, edgeId: edge.id },
+                );
               }}
-            />
-          </label>
-          <div className="property-stats">
-            <div>
-              <span>Start along track</span>
-              <b>{(edge.start * 100).toFixed(1)}%</b>
-            </div>
-            <div>
-              <span>End along track</span>
-              <b>{(edge.end * 100).toFixed(1)}%</b>
-            </div>
-          </div>
-          <button
-            className="edge-action"
-            onClick={() => {
-              setTool("select");
-              setEditing(
-                isEditing ? null : { pathId: track.id, edgeId: edge.id },
-              );
-            }}
-          >
-            {isEditing ? "Done editing" : "Edit start / end"}
-          </button>
-          {isEditing && (
+            >
+              {isEditing ? "Done editing" : "Edit start / end"}
+            </button>
+            {isEditing && (
+              <p className="muted">
+                Drag the green start and orange end handles along the track.
+                Middle-click pans.
+              </p>
+            )}
             <p className="muted">
-              Drag the green start and orange end handles along the track.
-              Middle-click pans.
+              Sides follow the direction from the track’s start to its end. Zero
+              distance places the edge against the trackbed.
             </p>
-          )}
-          <p className="muted">
-            Sides follow the direction from the track’s start to its end. Zero
-            distance places the edge against the trackbed.
-          </p>
-          <button
-            className="delete-button"
-            onClick={() => {
-              update([]);
-              setEditing(null);
-            }}
-          >
-            Remove platform edge
-          </button>
-        </>
-      )}
+            <button
+              className="delete-button"
+              onClick={() => {
+                update([]);
+                setEditing(null);
+              }}
+            >
+              Remove platform edge
+            </button>
+          </>
+        )}
+      </fieldset>
     </section>
   );
 }

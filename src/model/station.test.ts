@@ -67,7 +67,9 @@ describe("world geometry", () => {
     useEditor.getState().redo();
     expect(useEditor.getState().station.objects).toHaveLength(0);
     useEditor.getState().undo();
-    useEditor.getState().commit(original.objects);
+    useEditor
+      .getState()
+      .commit(original.objects.map((o) => ({ ...o, name: "Branched edit" })));
     expect(useEditor.getState().future).toHaveLength(0);
   });
 });
