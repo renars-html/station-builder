@@ -1,3 +1,4 @@
+import { BASE_SCALE, MIN_SCALE, MAX_SCALE, zoomPercent } from "./model/view";
 import { useEffect, useRef, useState } from "react";
 import {
   MousePointer2,
@@ -81,7 +82,7 @@ export default function App() {
   const [grid, setGrid] = useState(true),
     [snap, setSnap] = useState(false),
     [kind, setKind] = useState<AreaKind>("platform"),
-    [view, setView] = useState<View>({ x: 30, y: 15, scale: 0.82 }),
+    [view, setView] = useState<View>({ x: 30, y: 15, scale: BASE_SCALE }),
     [position, setPosition] = useState<Point>({ x: 0, y: 0 }),
     [help, setHelp] = useState(false);
   const finishRef = useRef<(() => void) | null>(null);
@@ -312,16 +313,22 @@ export default function App() {
               <button
                 title="Zoom out"
                 onClick={() =>
-                  setView({ ...view, scale: Math.max(0.15, view.scale / 1.2) })
+                  setView({
+                    ...view,
+                    scale: Math.max(MIN_SCALE, view.scale / 1.2),
+                  })
                 }
               >
                 <Minus size={16} />
               </button>
-              <span>{Math.round(view.scale * 100)}%</span>
+              <span>{zoomPercent(view.scale)}%</span>
               <button
                 title="Zoom in"
                 onClick={() =>
-                  setView({ ...view, scale: Math.min(24, view.scale * 1.2) })
+                  setView({
+                    ...view,
+                    scale: Math.min(MAX_SCALE, view.scale * 1.2),
+                  })
                 }
               >
                 <Plus size={16} />
@@ -332,7 +339,7 @@ export default function App() {
                 onClick={() => {
                   const ps = station.objects.flatMap(points);
                   if (!ps.length) {
-                    setView({ x: 30, y: 15, scale: 0.82 });
+                    setView({ x: 30, y: 15, scale: BASE_SCALE });
                     return;
                   }
                   const minX = Math.min(...ps.map((p) => p.x)),
@@ -341,9 +348,9 @@ export default function App() {
                     h = Math.max(...ps.map((p) => p.y)) - minY;
                   const el = document.querySelector(".canvas-host")!;
                   const scale = Math.max(
-                    0.15,
+                    MIN_SCALE,
                     Math.min(
-                      4,
+                      MAX_SCALE,
                       (el.clientWidth - 100) / Math.max(w, 1),
                       (el.clientHeight - 100) / Math.max(h, 1),
                     ),

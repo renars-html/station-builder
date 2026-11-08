@@ -2,7 +2,7 @@ import type { PathObject, Point } from "./station";
 // Dimensions are world meters, independent of canvas zoom.
 export const trackStyle = {
   gauge: 1.435,
-  railWidth: 0.07,
+  railWidth: 0.14,
   bedWidth: 3.4,
   sleeperLength: 2.6,
   sleeperWidth: 0.28,
@@ -12,7 +12,7 @@ export const trackStyle = {
   rail: "#493327",
 };
 export const edgeBands = [
-  { width: 0.1, color: "#f5f4ed" },
+  { width: 0.2, color: "#f5f4ed" },
   { width: 1, color: "#777b78" },
   { width: 0.9, color: "#f5f4ed" },
   { width: 0.9, color: "#777b78" },

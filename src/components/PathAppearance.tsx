@@ -13,10 +13,12 @@ export default function PathAppearance({
   path,
   selected,
   edgeSide = 1,
+  hitWidth,
 }: {
   path: PathObject;
   selected: boolean;
   edgeSide?: number;
+  hitWidth: number;
 }) {
   const geometry = useMemo(() => {
     if (path.kind === "placeholder") return null;
@@ -61,7 +63,7 @@ export default function PathAppearance({
           data={pathData(path)}
           stroke="#64746c"
           strokeWidth={2}
-          hitStrokeWidth={20}
+          hitStrokeWidth={Math.max(2, hitWidth)}
         />
       ) : path.kind === "track" && geometry ? (
         <>
@@ -70,7 +72,7 @@ export default function PathAppearance({
             stroke={trackStyle.bed}
             strokeWidth={trackStyle.bedWidth}
             lineJoin="round"
-            hitStrokeWidth={20}
+            hitStrokeWidth={Math.max(trackStyle.bedWidth, hitWidth)}
           />
           <Shape
             listening={false}
@@ -128,7 +130,7 @@ export default function PathAppearance({
           data={pathData(path)}
           stroke="transparent"
           strokeWidth={0.1}
-          hitStrokeWidth={20}
+          hitStrokeWidth={Math.max(0.2, hitWidth)}
         />
       )}
     </Group>

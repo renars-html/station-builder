@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Stage, Layer, Line, Path, Group, Circle, Text } from "react-konva";
-import type Konva from "konva";
+import { Stage, Layer, Line, Path, Group, Circle } from "react-konva";
+import Konva from "konva";
 import {
   colors,
   pathData,
@@ -14,6 +14,11 @@ import {
 import { draftGeometry } from "../model/pathDraft";
 import PathAppearance from "./PathAppearance";
 import { useEditor } from "../store/editor";
+import { BASE_SCALE, MIN_SCALE, MAX_SCALE, GRID_SPACING } from "../model/view";
+
+// Konva otherwise permits middle-button object/node dragging by default.
+Konva.dragButtons = [0];
+
 export interface View {
   x: number;
   y: number;
@@ -65,12 +70,9 @@ export default function Canvas({
       if (!initialized.current && width && height) {
         initialized.current = true;
         setView({
-          x: 25,
-          y: 25,
-          scale: Math.max(
-            0.15,
-            Math.min(1, (width - 70) / 1100, (height - 70) / 650),
-          ),
+          x: width / 2 - 450 * BASE_SCALE,
+          y: height / 2 - 240 * BASE_SCALE,
+          scale: BASE_SCALE,
         });
       }
     });
@@ -151,7 +153,7 @@ export default function Canvas({
   const actual = preview ?? active;
   const handle = (o: StationObject) => ({
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (tool === "select" && !space) {
+      if (tool === "select" && !space && e.evt.button === 0) {
         e.cancelBubble = true;
         select(o.id);
       }
@@ -167,13 +169,13 @@ export default function Canvas({
       );
     },
   });
-  const lowX = Math.floor(-view.x / view.scale / 20) * 20,
-    lowY = Math.floor(-view.y / view.scale / 20) * 20;
+  const lowX = Math.floor(-view.x / view.scale / GRID_SPACING) * GRID_SPACING,
+    lowY = Math.floor(-view.y / view.scale / GRID_SPACING) * GRID_SPACING;
   const highX = (size.width - view.x) / view.scale,
     highY = (size.height - view.y) / view.scale;
   const lines = [];
   if (grid) {
-    for (let x = lowX; x < highX; x += 20)
+    for (let x = lowX; x < highX; x += GRID_SPACING)
       lines.push(
         <Line
           key={"x" + x}
@@ -182,7 +184,7 @@ export default function Canvas({
           strokeWidth={1 / view.scale}
         />,
       );
-    for (let y = lowY; y < highY; y += 20)
+    for (let y = lowY; y < highY; y += GRID_SPACING)
       lines.push(
         <Line
           key={"y" + y}
@@ -192,6 +194,7 @@ export default function Canvas({
         />,
       );
   }
+  const scaleLength = 10 ** Math.floor(Math.log10(120 / view.scale));
   return (
     <div
       ref={host}
@@ -218,8 +221,11 @@ export default function Canvas({
           const p = stage.current?.getPointerPosition();
           if (!p) return;
           const scale = Math.max(
-            0.15,
-            Math.min(24, view.scale * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1)),
+            MIN_SCALE,
+            Math.min(
+              MAX_SCALE,
+              view.scale * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1),
+            ),
           );
           setView({
             scale,
@@ -297,6 +303,7 @@ export default function Canvas({
                   />
                 ) : (
                   <PathAppearance
+                    hitWidth={20 / view.scale}
                     path={o}
                     selected={o.id === selected}
                     edgeSide={(() => {
@@ -329,17 +336,6 @@ export default function Canvas({
                       }
                       return side;
                     })()}
-                  />
-                )}
-                {o.type === "area" && o.kind === "platform" && (
-                  <Text
-                    x={o.vertices[0].x + 24}
-                    y={o.vertices[0].y + 20}
-                    text={o.name.toUpperCase()}
-                    fontSize={10}
-                    letterSpacing={2}
-                    fill="#dedfd9"
-                    listening={false}
                   />
                 )}
               </Group>
@@ -434,9 +430,9 @@ export default function Canvas({
                   fill="white"
                   stroke="#277d6c"
                   strokeWidth={1.5 / view.scale}
-                  draggable
+                  draggable={!space}
                   onMouseDown={(e) => {
-                    e.cancelBubble = true;
+                    if (e.evt.button === 0 && !space) e.cancelBubble = true;
                   }}
                   onDragMove={(e) => {
                     let p = { x: e.target.x(), y: e.target.y() };
@@ -471,8 +467,8 @@ export default function Canvas({
         <span>↑</span>N
       </div>
       <div className="scale-bar">
-        <span style={{ width: 100 * view.scale }} />
-        100 m
+        <span style={{ width: scaleLength * view.scale }} />
+        {scaleLength} m
       </div>
     </div>
   );
