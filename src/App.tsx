@@ -1,3 +1,4 @@
+import ProjectFiles from "./components/ProjectFiles";
 import PathMeasurements from "./components/PathMeasurements";
 import TrackPlatformProperties, {
   type EdgeEditing,
@@ -17,7 +18,6 @@ import {
   Minus,
   Plus,
   Maximize,
-  Download,
   ChevronDown,
   Layers,
   Trash2,
@@ -89,6 +89,7 @@ export default function App() {
     [view, setView] = useState<View>({ x: 30, y: 15, scale: BASE_SCALE }),
     [position, setPosition] = useState<Point>({ x: 0, y: 0 }),
     [help, setHelp] = useState(false),
+    [fitRequest, setFitRequest] = useState(0),
     [editingEdge, setEditingEdge] = useState<EdgeEditing | null>(null);
   const finishRef = useRef<(() => void) | null>(null);
   const active = station.objects.find((o) => o.id === selected);
@@ -138,17 +139,6 @@ export default function App() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [redo, undo, remove, setTool, select, setDraft]);
-  function download() {
-    const blob = new Blob([JSON.stringify(station, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "station-layout.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
   const counts = {
     track: station.objects.filter(
       (o) => o.type === "path" && o.kind === "track",
@@ -192,9 +182,12 @@ export default function App() {
           >
             <HelpCircle size={17} />
           </button>
-          <button className="export" onClick={download}>
-            <Download size={15} /> Export layout
-          </button>
+          <ProjectFiles
+            onLoaded={() => {
+              setEditingEdge(null);
+              setFitRequest((n) => n + 1);
+            }}
+          />
         </div>
       </header>
       <div className="workspace">
@@ -317,6 +310,7 @@ export default function App() {
           </div>
           <div className="canvas-wrap">
             <Canvas
+              fitRequest={fitRequest}
               editingEdge={editingEdge}
               grid={grid}
               snap={snap}
@@ -605,8 +599,9 @@ export default function App() {
               </div>
             ))}
             <p className="muted">
-              Work is held in memory. Export your layout as structured JSON
-              before closing.
+              Use Save JSON for a portable project file, and Open JSON to load
+              it. Completed geometry also has local browser recovery; draft
+              points are not saved.
             </p>
           </div>
         </div>

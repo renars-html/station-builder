@@ -15,6 +15,7 @@ interface Editor extends Snapshot {
   past: Snapshot[];
   future: Snapshot[];
   selected: string | null;
+  loadProject: (station: Station, recovery?: boolean) => void;
   commit: (objects: StationObject[], finishDraft?: boolean) => void;
   setDraft: (draft: DraftPoint[]) => void;
   addPoint: (point: DraftPoint) => void;
@@ -42,6 +43,14 @@ export const useEditor = create<Editor>((set, get) => ({
   past: [],
   future: [],
   selected: null,
+  loadProject: (station, recovery = false) =>
+    set((s) => ({
+      ...(recovery ? { past: [], future: [] } : history(s)),
+      station: structuredClone(station),
+      draft: [],
+      selected: null,
+      tool: "select",
+    })),
   commit: (objects, finishDraft = false) =>
     set((s) => ({
       ...history(s),

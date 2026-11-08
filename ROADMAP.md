@@ -17,7 +17,7 @@ Goal: a reliable desktop layout editor, with world-meter geometry usable by futu
 
 Acceptance: record findings, priorities, verification commands and persistent repository guidance in ROADMAP.md and AGENTS.md.
 
-## M1 — Safe project files and recovery [planned]
+## M1 — Safe project files and recovery [complete]
 
 Plan: add a pure validating JSON boundary, safe Open/Save UI, undoable project replacement and recovery, error reporting, and explicit TypeScript checks.
 Acceptance:
@@ -67,3 +67,5 @@ Acceptance: explicit versioned endpoint junction references with validated conne
 ## Verification notes
 
 Baseline: 25 tests pass. Managed `sites-preview` relay repeatedly times out; attempt browser QA after changes, report its actual outcome, and continue pure geometry/state checks if infrastructure remains unavailable. Build currently emits a bundle-size warning; address using evidence in M6, not by suppressing it.
+
+M1 evidence: 32 tests pass; explicit TypeScript check and production build pass. Open validates into a new document before one undoable replacement. Recovery writes only completed document geometry, reports storage/validation errors, and preserves unreadable recovery rather than overwriting it. Browser storage/file-picker interaction remains part of M5 browser QA.

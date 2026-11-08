@@ -27,6 +27,7 @@ export interface View {
   scale: number;
 }
 interface Props {
+  fitRequest: number;
   editingEdge: EdgeEditing | null;
   grid: boolean;
   snap: boolean;
@@ -37,6 +38,7 @@ interface Props {
   onPosition: (p: Point) => void;
 }
 export default function Canvas({
+  fitRequest,
   editingEdge,
   grid,
   snap,
@@ -83,6 +85,35 @@ export default function Canvas({
     if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    if (!fitRequest) return;
+    initialized.current = true;
+    const ps = useEditor.getState().station.objects.flatMap(points);
+    if (!ps.length) {
+      setView({ x: size.width / 2, y: size.height / 2, scale: BASE_SCALE });
+      return;
+    }
+    const minX = Math.min(...ps.map((p) => p.x)),
+      minY = Math.min(...ps.map((p) => p.y)),
+      w = Math.max(...ps.map((p) => p.x)) - minX,
+      h = Math.max(...ps.map((p) => p.y)) - minY;
+    const scale = Math.max(
+      MIN_SCALE,
+      Math.min(
+        BASE_SCALE,
+        (size.width - 100) / Math.max(w, 1),
+        (size.height - 100) / Math.max(h, 1),
+      ),
+    );
+    setView({
+      scale,
+      x: (size.width - w * scale) / 2 - minX * scale,
+      y: (size.height - h * scale) / 2 - minY * scale,
+    });
+  }, [fitRequest]);
+  useEffect(() => {
+    setPreview(null);
+  }, [station, selected, tool]);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code === "Space" && !(e.target instanceof HTMLInputElement)) {

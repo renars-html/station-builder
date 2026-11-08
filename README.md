@@ -9,6 +9,7 @@ Requires Node.js 20.19+ (Node 22 recommended).
 ```sh
 npm install
 npm run dev
+npm run typecheck
 npm run build
 npm test
 ```
@@ -49,7 +50,7 @@ Future simulation modules can consume `Station` directly without importing React
 
 ## Current limits
 
-Work is held in memory and resets on reload. JSON export is supported; import and automatic persistence are not yet implemented. Selection is single-object. The editor does not enforce valid nonintersecting polygons or railway engineering constraints. There is no simulation, networking, or public deployment.
+Use **Save JSON** and **Open JSON** for portable projects. Opening validates before replacing the document and is undoable. Completed geometry is also saved to browser-local recovery after 600 ms; draft points are not recovered. Storage errors are shown, and file saving remains available. Unsupported or malformed JSON is rejected with an explanation (8 MB limit, 10,000 objects and 100,000 geometry points). Selection is single-object. The editor does not enforce valid nonintersecting polygons or railway engineering constraints. There is no simulation, networking, or public deployment.
 
 ## Verification
 
@@ -64,3 +65,5 @@ Choose **Edit start / end** to drag the green start and orange end handles. Hand
 `TrackPlatformEdge` stores an ID, side, distance, and normalized arc-length start/end positions (0–1). These fractions preserve relative placement when the track length changes. `PathObject.platformEdges` is a collection to allow future expansion; this version exposes exactly one attachment per track. No additional platform polygon or independently movable path is created. `src/model/trackPlatform.ts` supplies renderer-independent projection, clipping, and attachment band geometry; curve positions use the same sampled path as the renderer.
 
 The Properties panel displays the selected path’s length in meters directly above Station overview, for placeholder, track, and standalone platform-edge paths. Tracks also display attached platform-edge lengths along their offset outer boundary. Curved lengths use sampled arc lengths. Measurements update after geometry, side, distance, or range changes.
+
+See ROADMAP.md for prioritized acceptance criteria and progress. AGENTS.md records persistent implementation guidance.
