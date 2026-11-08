@@ -27,7 +27,7 @@ Acceptance:
 - Debounced local recovery survives reload; storage errors are visible and JSON save remains available. Drafts are explicitly excluded from recovery.
 - Tests cover malformed data, limits, round-trips, failed load preserving the project, and load undo/redo.
 
-## M2 — Snapping and editing finished paths [planned]
+## M2 — Snapping and editing finished paths [complete]
 
 Plan: a pure zoom-aware snap resolver and geometry editing commands, used by both drafting and node editing.
 Acceptance:
@@ -69,3 +69,5 @@ Acceptance: explicit versioned endpoint junction references with validated conne
 Baseline: 25 tests pass. Managed `sites-preview` relay repeatedly times out; attempt browser QA after changes, report its actual outcome, and continue pure geometry/state checks if infrastructure remains unavailable. Build currently emits a bundle-size warning; address using evidence in M6, not by suppressing it.
 
 M1 evidence: 32 tests pass; explicit TypeScript check and production build pass. Open validates into a new document before one undoable replacement. Recovery writes only completed document geometry, reports storage/validation errors, and preserves unreadable recovery rather than overwriting it. Browser storage/file-picker interaction remains part of M5 browser QA.
+
+M2 evidence: 40 tests pass, TypeScript and production build pass. Snap prioritizes anchors/boundaries within 10 screen pixels before the grid, excludes the moved node and its own boundary, and shows a marker. Extend preserves path identity/type/attachments and undoable draft state. Midpoint splitting uses de Casteljau and retains curve shape. Endpoint connections are geometric coincidence, not persistent graph junctions (M6).

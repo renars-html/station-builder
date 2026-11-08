@@ -1,3 +1,4 @@
+import { resolveSnap, type SnapResult } from "../model/snapping";
 import EdgeRangeHandles from "./EdgeRangeHandles";
 import type { EdgeEditing } from "./TrackPlatformProperties";
 import { useEffect, useRef, useState } from "react";
@@ -52,6 +53,7 @@ export default function Canvas({
   const host = useRef<HTMLDivElement>(null),
     stage = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
+  const [snapTarget, setSnapTarget] = useState<SnapResult | null>(null);
   const [hover, setHover] = useState<Point | null>(null);
   const [preview, setPreview] = useState<StationObject | null>(null);
   const pan = useRef<{ x: number; y: number; vx: number; vy: number } | null>(
@@ -116,12 +118,19 @@ export default function Canvas({
   }, [station, selected, tool]);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !(e.target instanceof HTMLInputElement)) {
+      if (
+        e.code === "Space" &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLSelectElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
         e.preventDefault();
         setSpace(true);
       }
     };
-    const up = () => {
+    const up = (e: KeyboardEvent | FocusEvent) => {
+      if (e.type === "keyup" && (e as KeyboardEvent).code !== "Space") return;
       setSpace(false);
       pan.current = null;
     };
@@ -142,9 +151,13 @@ export default function Canvas({
       x: (p.x - view.x) / view.scale,
       y: (p.y - view.y) / view.scale,
     };
-    return snap
-      ? { x: Math.round(v.x / 10) * 10, y: Math.round(v.y / 10) * 10 }
-      : v;
+    if (!snap) {
+      setSnapTarget(null);
+      return v;
+    }
+    const target = resolveSnap(v, station.objects, view.scale);
+    setSnapTarget(target);
+    return target.point;
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -159,7 +172,8 @@ export default function Canvas({
         !hover ||
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLSelectElement ||
-        e.target instanceof HTMLTextAreaElement
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
       )
         return;
       e.preventDefault();
@@ -325,6 +339,7 @@ export default function Canvas({
         onMouseLeave={() => {
           pan.current = null;
           setHover(null);
+          setSnapTarget(null);
         }}
       >
         <Layer listening={false}>{lines}</Layer>
@@ -488,20 +503,32 @@ export default function Canvas({
                   }}
                   onDragMove={(e) => {
                     let p = { x: e.target.x(), y: e.target.y() };
-                    if (snap)
-                      p = {
-                        x: Math.round(p.x / 10) * 10,
-                        y: Math.round(p.y / 10) * 10,
-                      };
+                    if (snap) {
+                      const target = resolveSnap(
+                        p,
+                        station.objects,
+                        view.scale,
+                        actual.id,
+                        i,
+                      );
+                      p = target.point;
+                      setSnapTarget(target);
+                      e.target.position(p);
+                    }
                     setPreview(setPoint(actual, i, p));
                   }}
                   onDragEnd={(e) => {
+                    const raw = { x: e.target.x(), y: e.target.y() };
                     const p = snap
-                      ? {
-                          x: Math.round(e.target.x() / 10) * 10,
-                          y: Math.round(e.target.y() / 10) * 10,
-                        }
-                      : { x: e.target.x(), y: e.target.y() };
+                      ? resolveSnap(
+                          raw,
+                          station.objects,
+                          view.scale,
+                          actual.id,
+                          i,
+                        ).point
+                      : raw;
+                    setSnapTarget(null);
                     commit(
                       station.objects.map((o) =>
                         o.id === actual.id ? setPoint(actual, i, p) : o,
@@ -512,6 +539,15 @@ export default function Canvas({
                 />
               ))}
             </Group>
+          )}
+          {snap && snapTarget && (
+            <Circle
+              {...snapTarget.point}
+              radius={7 / view.scale}
+              stroke={snapTarget.kind === "grid" ? "#8b9680" : "#ca8738"}
+              strokeWidth={2 / view.scale}
+              listening={false}
+            />
           )}
         </Layer>
       </Stage>

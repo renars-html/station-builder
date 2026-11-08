@@ -752,3 +752,30 @@ select {
 .project-message button {
   font-size: 19px;
 }
+.path-editing {
+  border-top: 1px solid #dce3d5;
+  padding-top: 15px;
+  margin-top: 18px;
+}
+.path-editing h3 {
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.drawing-error {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+  background: #fff2e5;
+  border: 1px solid #c69d79;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 12px;
+  z-index: 4;
+}
+.drawing-error button {
+  margin-left: auto;
+  font-size: 18px;
+}

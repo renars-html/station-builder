@@ -1,3 +1,4 @@
+import PathEditing from "./components/PathEditing";
 import ProjectFiles from "./components/ProjectFiles";
 import PathMeasurements from "./components/PathMeasurements";
 import TrackPlatformProperties, {
@@ -69,6 +70,8 @@ const tools = [
 ] as const;
 export default function App() {
   const {
+    error,
+    clearError,
     station,
     tool,
     setTool,
@@ -102,7 +105,8 @@ export default function App() {
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLSelectElement ||
-        e.target instanceof HTMLTextAreaElement
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
       )
         return;
       const k = e.key.toLowerCase();
@@ -297,7 +301,7 @@ export default function App() {
               </button>
               <button
                 className={snap ? "toggled" : ""}
-                title="Snap to 10 m grid"
+                title="Snap to nearby anchors and boundaries, then the 10 m grid"
                 onClick={() => setSnap(!snap)}
               >
                 <Magnet size={16} />
@@ -320,6 +324,14 @@ export default function App() {
               finishRef={finishRef}
               onPosition={setPosition}
             />
+            {error && (
+              <div className="drawing-error" role="alert">
+                {error}
+                <button aria-label="Dismiss drawing error" onClick={clearError}>
+                  ×
+                </button>
+              </div>
+            )}
             <div className="zoom-controls">
               <button
                 title="Zoom out"
@@ -479,6 +491,9 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+              )}
+              {active.type === "path" && (
+                <PathEditing key={active.id} path={active} />
               )}
               {active.type === "path" && active.kind === "track" && (
                 <TrackPlatformProperties

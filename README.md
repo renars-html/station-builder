@@ -29,7 +29,7 @@ The startup template is one 50 m straight track with a full-length attached plat
 - **Escape:** cancel drawing or deselect. Changing tools cancels the unfinished drawing.
 - **Delete / Backspace:** delete selection.
 - **Ctrl/Command+Z:** undo; **Ctrl/Command+Shift+Z** or **Ctrl/Command+Y:** redo.
-- **G:** toggle grid. Snap rounds newly drawn and edited nodes to the 10 m grid.
+- **G:** toggle grid. Snap prioritizes nearby object anchors and boundaries within 10 screen pixels, then falls back to the 10 m grid. The snap marker distinguishes object targets from grid targets.
 - Mouse wheel zooms around the cursor. Bottom-right controls zoom or fit all objects.
 - **Export layout:** download the station as renderer-independent JSON.
 
@@ -67,3 +67,5 @@ Choose **Edit start / end** to drag the green start and orange end handles. Hand
 The Properties panel displays the selected path’s length in meters directly above Station overview, for placeholder, track, and standalone platform-edge paths. Tracks also display attached platform-edge lengths along their offset outer boundary. Curved lengths use sampled arc lengths. Measurements update after geometry, side, distance, or range changes.
 
 See ROADMAP.md for prioritized acceptance criteria and progress. AGENTS.md records persistent implementation guidance.
+
+Selected paths now offer **Extend from end**, **Insert midpoint**, and **Remove segment**. Extension preserves the object ID, path kind, and attachments; finishing or cancelling remains undoable. Midpoint insertion exactly splits straight/quadratic/cubic segments. Snapped endpoints coincide geometrically; they are not yet shared network junctions.
